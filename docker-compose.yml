@@ -24,6 +24,7 @@ services:
       - ${HOME}/.config:/config           # 宿主 ~/.config（maa-cli 配置在 /config/maa）
       - ${HOME}/.local/share:/data        # 宿主 ~/.local/share（MaaCore 资源在 /data/maa）
       - ${HOME}/.local/state:/state       # 宿主 ~/.local/state（日志在 /state/maa）
+      - ${HOME}/.cache/maa:/root/.cache/maa  # 宿主活动数据缓存（活动关卡/关卡计划）
     # 如需连接宿主上的模拟器/设备，可将宿主 adb 目录挂入并开放网络:
     # - /path/to/emulator:/emulator
     # network_mode: host
