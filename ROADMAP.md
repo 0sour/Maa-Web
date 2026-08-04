@@ -48,9 +48,10 @@
 - [ ] **J 输入选项化（专项，大工程）**：
   - 进度：
     - [x] **第一波：作战关卡选择**（2026-08-05 完成）：快速任务/队列的「关卡」字段改为自定义搜索下拉（点击展开/输入过滤/显示理智+掉落）；数据 `/api/stages/list` 全量 532 关（limit 放宽 1000），字母开头资源关优先排序；**stages.json 来自 MaaCore 资源，服务端 mtime 检测自动重载（随 `maa update` 更新生效，无需重启）**
-    - [ ] 第二波：肉鸽分队/核心干员/招募组合（数据源：MAA 资源 `resource/roguelike/<theme>/`）
-    - [ ] 第三波：编队/客户端等其余字段
-  - 回退指引：关卡选择涉及 `server/stages.js`（mtime 重载 + list）、`server/index.js`（/api/stages/list）、`public/app.js`（buildStagePicker/loadStageOptions 及 buildQuickInput/fieldInput 的 stage 分支）
+    - [x] **第二波：肉鸽参数选择**（2026-08-05 完成）：`/api/roguelike` 接口（分队表按主题 + 核心干员 is_start 过滤 + 难度/模式按主题动态）；快速任务「自动集成战略」的**分队/核心干员/难度/模式**全部改为搜索下拉（显示中文标签、值存 data-raw 提交、**切换主题自动清空已选**）；核心干员对齐官方逻辑（仅 is_start=true 的开局干员，排除组名/职业杂项）
+    - [ ] 第三波：**队列侧 Roguelike 字段**（dailyTaskTypes 的 squad/core_char/roles 接入同一 picker）；roles（开局招募组合）数据源待定
+    - [ ] 第四波：编队/客户端等其余字段
+  - 回退指引：关卡选择涉及 `server/stages.js`、`server/index.js`（/api/stages/list）、`public/app.js`（buildStagePicker/loadStageOptions 及 buildQuickInput/fieldInput 的 stage 分支）；肉鸽选择涉及 `server/roguelike.js`（/api/roguelike）、`public/app.js`（buildPicker 通用组件 + squad/coreChar/difficulty/mode 分支 + theme 联动清空）
 - [ ] **N 选项中文汉化（专项）**：界面英文/标识符选项替换为中文（客户端类型/肉鸽主题/无人机用途/设施/代理倍率等），值不变、显示层映射中文标签，参考 MAA 原版 zh-cn.json 词表；与 J 配合
 - [x] **N 选项中文汉化（第一批）**（2026-08-05 完成）：
   - 范围：客户端类型（官服/B服/渠道服/国际服/日服/韩服）、代理倍率（不切换/AUTO/N倍）、服务器（国服/美服/日服/韩服）、额外选 Tag 模式、基建设施（制造站/贸易站/…）、无人机用途（龙门币/合成玉/…）、编队序号（默认/编队1-4）、助战使用模式、肉鸽主题（傀影/水月/萨米/萨卡兹/界园）与模式、生息演算主题/模式/连点长按、抄作业突袭模式——**值不变，显示层映射中文标签**（`[值, 标签]` 对）
