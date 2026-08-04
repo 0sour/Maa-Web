@@ -422,13 +422,11 @@ function fieldInput(f, item) {
     row.append(picker, codeInput);
     wrap.append(row);
     if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
-    // 作业列表区（自动预览 + 勾选 + 导入落地）
+    // 作业列表区（自动预览 + 勾选即生效：勾选自动保存，取消自动移除）
     const listBox = elt('div', { class: 'copilot-list', id: `copilot-qlist-${item.type}` });
-    const importBtn = elt('button', { class: 'btn sm', type: 'button', onclick: () => importCheckedCopilots(item, listBox) }, '导入勾选作业');
     const listWrap = elt('div', { class: 'field full' }, [
-      elt('label', {}, '作业列表（输入代码后自动显示，勾选后点击导入）'),
+      elt('label', {}, '作业列表（输入代码后自动显示，勾选即添加到任务，取消即移除）'),
       listBox,
-      elt('div', { style: 'margin-top:6px' }, importBtn),
     ]);
     wrap.append(listWrap);
     codeInput.addEventListener('change', async () => {
@@ -437,7 +435,7 @@ function fieldInput(f, item) {
       listBox.innerHTML = '<div class="copilot-loading">正在获取作业…</div>';
       try {
         const res = await api('/api/copilot/preview', { method: 'POST', body: JSON.stringify({ input: code }) });
-        renderQueueCopilotList(listBox, res.items || []);
+        renderQueueCopilotList(listBox, res.items || [], item);
       } catch (err) {
         listBox.innerHTML = '';
         listBox.append(elt('div', { class: 'copilot-err' }, `作业获取失败：${err.message}`));
@@ -1147,12 +1145,21 @@ async function loadRoguelikeData(theme) {
   }
 }
 
-/* 队列侧抄作业：作业列表渲染（与快速任务同款，勾选后导入落地） */
-function renderQueueCopilotList(box, items) {
+/* 队列侧抄作业：作业列表渲染——勾选即保存到 copilot_list，取消即移除 */
+function copilotUriMap() {
+  try { return JSON.parse(localStorage.getItem('maa-web-copilot-uri-map') || '{}'); } catch { return {}; }
+}
+function saveCopilotUriMap(map) {
+  try { localStorage.setItem('maa-web-copilot-uri-map', JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+function renderQueueCopilotList(box, items, item) {
   box.innerHTML = '';
   if (!items.length) { box.append(elt('div', { class: 'muted', style: 'padding:8px' }, '未解析到作业')); return; }
+  const uriMap = copilotUriMap();
+  const existing = new Set((item.params.copilot_list || []).map((r) => r.filename));
   const list = elt('div', { class: 'copilot-list-inner' });
-  const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; });
+  const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; c.dispatchEvent(new Event('change', { bubbles: true })); });
   const head = elt('div', { class: 'copilot-list-head' }, [
     elt('span', { class: 'copilot-count' }, `共 ${items.length} 项`),
     elt('div', { class: 'spacer' }),
@@ -1160,46 +1167,44 @@ function renderQueueCopilotList(box, items) {
     elt('button', { class: 'btn xs', type: 'button', onclick: () => setAll(false) }, '取消全选'),
   ]);
   for (const it of items) {
+    const savedPath = uriMap[it.uri];
     const row = elt('label', { class: 'copilot-item' }, [
-      elt('input', { type: 'checkbox', checked: true, 'data-uri': it.uri, 'data-stage': it.stage || '' }),
+      elt('input', { type: 'checkbox', 'data-uri': it.uri, 'data-stage': it.stage || '' }),
       elt('span', { class: 'copilot-stage' }, it.stage || it.uri),
       ...(it.author ? [elt('span', { class: 'copilot-meta' }, `作者 ${it.author}${it.views ? ` · ${it.views} 浏览` : ''}`)] : []),
     ]);
+    const cb = row.querySelector('input');
+    cb.checked = !!savedPath && existing.has(savedPath);
+    cb.addEventListener('change', async () => {
+      try {
+        item.params = item.params || {};
+        const rows = item.params.copilot_list || [];
+        if (cb.checked) {
+          const r = await api('/api/copilot/download', { method: 'POST', body: JSON.stringify({ input: it.uri }) });
+          if (r.items && r.items.length) {
+            const row = r.items[0];
+            uriMap[it.uri] = row.path;
+            saveCopilotUriMap(uriMap);
+            rows.push({ filename: row.path, stage_name: row.stage, is_raid: false });
+            item.params.copilot_list = rows;
+            toast(`已添加作业 ${row.stage}`, 'success');
+          } else {
+            cb.checked = false;
+            toast('该作业无法保存', 'error');
+          }
+        } else {
+          const path = uriMap[it.uri];
+          if (path) item.params.copilot_list = rows.filter((r) => r.filename !== path);
+        }
+        autosaveQueue();
+      } catch (err) {
+        cb.checked = !cb.checked;
+        toast(`操作失败：${err.message}`, 'error');
+      }
+    });
     list.append(row);
   }
   box.append(head, list);
-}
-
-async function importCheckedCopilots(item, box) {
-  const checked = [...box.querySelectorAll('input[type=checkbox]:checked')];
-  if (!checked.length) return toast('请先勾选要导入的作业', 'error');
-  const btn = box.parentElement.querySelector('button');
-  if (btn) btn.disabled = true;
-  try {
-    const rows = [];
-    for (const cb of checked) {
-      const uri = cb.dataset.uri;
-      if (!uri) continue;
-      const r = await api('/api/copilot/download', { method: 'POST', body: JSON.stringify({ input: uri }) });
-      if (r.items && r.items.length) {
-        for (const it of r.items) rows.push({ filename: it.path, stage_name: it.stage, is_raid: false });
-      }
-    }
-    if (rows.length) {
-      item.params = item.params || {};
-      item.params.copilot_list = (item.params.copilot_list || []).concat(rows);
-      autosaveQueue();
-      renderQueueSettings();
-      loadCopilotFiles();
-      toast(`已导入 ${rows.length} 个作业到「作业列表」`, 'success');
-    } else {
-      toast('没有可导入的作业', 'error');
-    }
-  } catch (err) {
-    toast(`导入失败：${err.message}`, 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
 }
 
 /* 队列侧抄作业：本地作业文件列表 */
