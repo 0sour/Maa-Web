@@ -1,0 +1,26 @@
+services:
+  maa-web:
+    build: .
+    container_name: maa-web
+    restart: unless-stopped
+    init: true
+    ports:
+      - "3100:3100"
+    environment:
+      - PORT=3100
+      - MAA_CONFIG_DIR=/config
+      - XDG_DATA_HOME=/data
+      - XDG_STATE_HOME=/state
+      # - MAA_LOG=Debug            # 可在此调整默认日志级别
+    volumes:
+      - maa-config:/config         # maa-cli / MaaCore 配置文件
+      - maa-data:/data             # MaaCore 及资源
+      - maa-state:/state           # 状态与日志
+    # 如需连接宿主上的模拟器/设备，可将宿主 adb 目录挂入并开放网络:
+    # - /path/to/emulator:/emulator
+    # network_mode: host
+
+volumes:
+  maa-config:
+  maa-data:
+  maa-state:

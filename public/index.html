@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#12151b" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>MAA Web 控制台</title>
+  <link rel="stylesheet" href="style.css?v=20260805s" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">MAA</div>
+        <div class="brand-text">
+          <strong>Web 控制台</strong>
+          <span>明日方舟小助手</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-view="queue">任务队列</button>
+        <button class="nav-btn" data-view="device">设备连接</button>
+        <button class="nav-btn" data-view="quick">快速任务</button>
+        <button class="nav-btn" data-view="recognition">信息识别</button>
+        <button class="nav-btn" data-view="schedule">定时任务</button>
+        <button class="nav-btn" data-view="config">配置</button>
+        <button class="nav-btn" data-view="settings">设置</button>
+        <button class="nav-btn" data-view="about">关于</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button class="run-indicator" id="runner-badge" title="点击查看运行详情 / 停止">
+          <span class="run-dot" id="runner-dot"></span>
+          <span id="runner-badge-text">空闲</span>
+          <span class="run-chev" id="runner-chev">›</span>
+        </button>
+        <div class="runner-panel" id="runner-panel" hidden>
+          <div class="rp-head">
+            <div class="rp-title" id="rp-title">任务</div>
+            <button class="rp-close" id="rp-close">✕</button>
+          </div>
+          <div class="rp-meta" id="rp-meta">
+            <span>开始 <b id="rp-start">-</b></span>
+            <span>已运行 <b id="rp-elapsed">-</b></span>
+          </div>
+          <div class="rp-queue" id="rp-queue" hidden>
+            <div class="rp-queue-title">排队任务</div>
+            <div class="rp-queue-list" id="rp-queue-list"></div>
+          </div>
+          <pre class="rp-out" id="rp-out"></pre>
+          <button class="btn danger full" id="rp-stop-btn">停止运行</button>
+        </div>
+        <button class="dev-status" id="device-badge" data-view="device" title="设备连接状态，点击进入设备连接页面">
+          <span class="dev-dot" id="device-dot"></span>
+          <span id="device-status-text">未连接设备</span>
+        </button>
+        <button class="screen-toggle" id="screen-btn" title="显示 / 隐藏设备实时屏幕">
+          <span class="screen-dot" id="screen-dot"></span>
+          <span id="screen-btn-text">设备画面</span>
+        </button>
+        <button class="screen-toggle accent2" id="wsscrcpy-btn" title="打开 ws-scrcpy 完整版远程控制（多解码器/多指触控/键盘）">
+          <span class="scrcpy-dot" id="wsscrcpy-dot"></span>
+          <span>远程控制</span>
+        </button>
+        <button class="screen-toggle accent3" id="side-log-btn" title="展开 / 收起右侧实时日志面板">
+          <span class="side-log-dot" id="side-log-dot"></span>
+          <span id="side-log-btn-text">实时日志</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="screen-overlay" id="screen-overlay" hidden>
+      <div class="screen-box">
+        <div class="screen-head">
+          <span>设备实时画面 <b id="screen-device-name">-</b></span>
+          <select id="screen-fps-select" class="screen-fps-select" title="刷新帧率"></select>
+          <button class="rp-close" id="screen-close">✕</button>
+        </div>
+        <div class="screen-stage">
+          <img id="screen-img" alt="设备实时画面" />
+          <div class="screen-status" id="screen-status" hidden></div>
+        </div>
+        <div class="screen-foot">
+          <span class="screen-hint">请保持设备亮屏</span>
+          <span class="screen-fps" id="screen-fps">-</span>
+        </div>
+      </div>
+    </div>
+
+    <main class="content">
+
+      <!-- 任务队列 -->
+      <section id="view-queue" class="view active">
+        <div class="page-head">
+          <div>
+            <h1>任务队列</h1>
+            <p class="sub">像官方客户端一样编排每日任务，按顺序执行所有启用的任务</p>
+          </div>
+        </div>
+        <div id="today-stages" class="today-stages"></div>
+        <div class="panel queue-panel">
+          <div class="queue-layout">
+            <div class="queue-left">
+              <div class="toolbar">
+                <select id="add-task-type"></select>
+                <button class="btn primary" id="add-task-btn">添加任务</button>
+                <div class="spacer"></div>
+                <button class="btn sm" id="enable-all-btn">全部启用</button>
+                <button class="btn sm" id="disable-all-btn">全部取消</button>
+              </div>
+              <div id="queue-list" class="queue-list"></div>
+            </div>
+            <div class="queue-right">
+              <div id="queue-settings" class="queue-settings"></div>
+            </div>
+          </div>
+          <div class="toolbar queue-footer">
+            <label>设备 <select id="queue-device"></select></label>
+            <label class="chk"><input type="checkbox" id="queue-batch" /> 批量模式</label>
+            <label class="chk"><input type="checkbox" id="queue-dryrun" /> 试运行</label>
+            <label>日志级别 <select id="queue-log-level">
+              <option value="">默认 (Warn)</option>
+              <option value="Error">Error</option>
+              <option value="Warn">Warn</option>
+              <option value="Info">Info</option>
+              <option value="Debug">Debug</option>
+              <option value="Trace">Trace</option>
+            </select></label>
+            <div class="spacer"></div>
+            <button class="btn" id="queue-save-btn">保存队列</button>
+            <button class="btn primary big" id="queue-run-btn">开始任务</button>
+            <button class="btn danger big" id="queue-stop-btn">停止</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 设备连接 -->
+      <section id="view-device" class="view">
+        <div class="page-head">
+          <div>
+            <h1>设备连接</h1>
+            <p class="sub">自动或手动连接安卓设备，连接后所有任务将使用同一台设备</p>
+          </div>
+        </div>
+        <div class="cards" id="device-current-cards"></div>
+        <div class="panel">
+          <h2>分辨率</h2>
+          <p class="sub" style="margin-bottom:10px">MAA 仅支持 16:9 分辨率（720x1280 / 1080x1920 / 1440x2560）。当前 <code id="res-current">-</code>，若不是支持分辨率，任务会报 <code>UnsupportedResolution</code>。</p>
+          <div id="res-warning" class="adb-state warn" style="display:none"></div>
+          <div class="toolbar">
+            <button class="btn primary" id="res-auto-btn">自动调整分辨率</button>
+            <button class="btn" id="res-refresh-btn">刷新</button>
+            <button class="btn" id="res-reset-btn">一键重置分辨率</button>
+          </div>
+          <p class="sub" style="margin-top:10px">调整后请关闭并重开游戏让新分辨率生效；使用完可点「一键重置分辨率」恢复系统默认。</p>
+        </div>
+        <div class="panel">
+          <h2>自动连接</h2>
+          <p class="sub" style="margin-bottom:10px">扫描已连接的设备（USB 或网络），选择并连接。</p>
+          <div class="toolbar">
+            <button class="btn primary" id="device-scan-btn">扫描设备</button>
+          </div>
+          <div id="device-scan-result">
+            <div id="device-scan-state" class="adb-state">尚未扫描</div>
+            <div id="device-scan-list" class="adb-device-list"></div>
+            <div class="toolbar" id="device-auto-apply-wrap" style="display:none">
+              <button class="btn" id="device-auto-connect-btn">连接所选设备</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>手动连接</h2>
+          <p class="sub" style="margin-bottom:10px">输入设备的 adb 地址：USB 序列号、模拟器 <code>emulator-5554</code> 或网络地址 <code>192.168.1.10:5555</code>。</p>
+          <div class="conn-grid">
+            <div class="field"><label>adb 路径</label><input type="text" id="device-manual-adb" placeholder="留空自动检测" /></div>
+            <div class="field"><label>设备地址</label><input type="text" id="device-manual-address" placeholder="emulator-5554 / 127.0.0.1:5555 / 设备序列号" /></div>
+            <div class="field"><label>触控模式</label>
+              <select id="device-manual-touch">
+                <option value="MaaTouch">MaaTouch</option>
+                <option value="MiniTouch">MiniTouch</option>
+                <option value="ADB">ADB</option>
+              </select>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn primary" id="device-manual-connect-btn">连接</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 快速任务 -->
+      <section id="view-quick" class="view">
+        <div class="page-head">
+          <div>
+            <h1>快速任务</h1>
+            <p class="sub">不修改队列，直接运行单个 CLI 命令</p>
+          </div>
+        </div>
+        <div id="quick-cards" class="quick-cards"></div>
+        <div class="panel" id="quick-config-panel">
+          <div class="quick-form-head">
+            <h2 id="quick-form-title">选择任务</h2>
+          </div>
+          <div id="quick-form" class="task-form"></div>
+          <details class="opts" style="margin-top:14px">
+            <summary>运行设置（全局选项）</summary>
+            <div class="toolbar opts-inner">
+              <label class="chk"><input type="checkbox" id="quick-batch" /> 批量模式</label>
+              <label class="chk"><input type="checkbox" id="quick-dryRun" /> 试运行</label>
+              <label class="chk"><input type="checkbox" id="quick-noSummary" /> 关闭总结</label>
+              <label class="chk"><input type="checkbox" id="quick-noAutoReconnect" /> 不自动重连</label>
+              <div class="spacer"></div>
+              <label>日志级别</label>
+              <select id="quick-log-level">
+                <option value="">默认 (Warn)</option>
+                <option value="Error">Error</option>
+                <option value="Warn">Warn</option>
+                <option value="Info">Info</option>
+                <option value="Debug">Debug</option>
+                <option value="Trace">Trace</option>
+              </select>
+            </div>
+          </details>
+          <div class="toolbar" style="margin-top:14px">
+            <button class="btn primary" id="quick-run-btn">运行</button>
+            <button class="btn danger" id="quick-stop-btn">停止</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 工具箱 -->
+      <section id="view-recognition" class="view">
+        <div class="page-head">
+          <div>
+            <h1>信息识别</h1>
+            <p class="sub">识别公招 / 仓库 / 干员信息，并查看历史识别结果</p>
+          </div>
+        </div>
+        <div class="toolbar" style="margin-bottom:14px">
+          <label>设备 <select id="tools-device"></select></label>
+          <button class="btn sm" id="results-refresh">刷新结果</button>
+        </div>
+        <div class="cards tools-cards">
+          <div class="tool-card" data-tool="recruit">
+            <div class="tool-icon" style="--tc:#4f8cff">公</div>
+            <div class="tool-body">
+              <h3>公招识别</h3>
+              <p>识别当前公招界面，计算标签组合</p>
+              <button class="btn primary sm run">运行</button>
+              <button class="btn sm history" data-result-type="recruit">历史记录</button>
+            </div>
+          </div>
+          <div class="tool-card" data-tool="depot">
+            <div class="tool-icon" style="--tc:#34d399">仓</div>
+            <div class="tool-body">
+              <h3>仓库识别</h3>
+              <p>识别仓库材料并统计</p>
+              <button class="btn primary sm run">运行</button>
+              <button class="btn sm history" data-result-type="depot">历史记录</button>
+            </div>
+          </div>
+          <div class="tool-card" data-tool="operbox">
+            <div class="tool-icon" style="--tc:#fbbf24">干</div>
+            <div class="tool-body">
+              <h3>干员识别</h3>
+              <p>识别干员 Box，统计已有/潜能</p>
+              <button class="btn primary sm run">运行</button>
+              <button class="btn sm history" data-result-type="operbox">历史记录</button>
+            </div>
+          </div>
+        </div>
+        <div class="results-layout" style="margin-top:6px">
+          <div class="results-side">
+            <div class="results-filter">
+              <button class="chip active" data-filter="">全部</button>
+              <button class="chip" data-filter="recruit">公招</button>
+              <button class="chip" data-filter="depot">仓库</button>
+              <button class="chip" data-filter="operbox">干员</button>
+            </div>
+            <div class="results-list" id="results-list"></div>
+          </div>
+          <div class="results-detail" id="results-detail">
+            <div class="results-empty">选择左侧记录查看详情</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 定时任务 -->
+      <section id="view-schedule" class="view">
+        <div class="page-head">
+          <div>
+            <h1>定时任务</h1>
+            <p class="sub">按每周 / 每日时间点自动执行当前任务队列中启用的任务</p>
+          </div>
+          <button class="btn primary sm" id="schedule-add">新增定时任务</button>
+        </div>
+        <div class="cards schedule-cards" id="schedule-list"></div>
+        <dialog id="schedule-modal">
+          <form id="schedule-form" method="dialog">
+            <div class="sm-head">
+              <h3 id="schedule-modal-title">新增定时任务</h3>
+              <button type="button" class="btn sm" id="schedule-close">×</button>
+            </div>
+            <div class="sm-body">
+              <label class="field"><span>任务名称</span><input type="text" id="schedule-name" placeholder="如：每日清日常" maxlength="40" /></label>
+              <div class="field"><span>执行星期（不选表示每天）</span>
+                <div class="weekday-picker" id="schedule-weekdays"></div>
+              </div>
+              <div class="field"><span>执行时间</span>
+                <div class="time-picker">
+                  <div class="chips" id="schedule-times"></div>
+                  <div class="time-add-row">
+                    <input type="time" id="schedule-time-input" step="60" />
+                    <button type="button" class="btn sm" id="schedule-time-add">添加</button>
+                  </div>
+                </div>
+              </div>
+              <label class="field"><span>连接配置</span>
+                <select id="schedule-profile"><option value="">跟随全局配置</option></select>
+              </label>
+            </div>
+            <div class="sm-foot">
+              <button type="button" class="btn sm" id="schedule-cancel">取消</button>
+              <button type="button" class="btn primary sm" id="schedule-save">保存</button>
+            </div>
+          </form>
+        </dialog>
+      </section>
+
+      <!-- 配置 -->
+      <section id="view-config" class="view">
+        <div class="page-head">
+          <div>
+            <h1>配置管理</h1>
+            <p class="sub">连接设置、CLI 配置与任务文件</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <label>目录</label>
+            <select id="config-dir-select">
+              <option value="root">配置根目录</option>
+              <option value="tasks">tasks/</option>
+              <option value="profiles">profiles/</option>
+              <option value="infrast">infrast/</option>
+            </select>
+            <button class="btn" id="new-file-btn">新建文件</button>
+            <div class="spacer"></div>
+            <span class="hint" id="config-dir-hint"></span>
+          </div>
+          <div id="config-file-list" class="file-list"></div>
+        </div>
+        <div class="panel" id="config-editor-panel" style="display:none">
+          <div class="toolbar">
+            <h2 id="config-editor-title">编辑</h2>
+            <div class="spacer"></div>
+            <button class="btn primary" id="save-config-btn">保存</button>
+          </div>
+          <textarea id="config-editor" class="editor" spellcheck="false"></textarea>
+        </div>
+        <div class="panel">
+          <h2>连接配置（profiles/default.toml）</h2>
+          <p class="sub" style="margin-bottom:10px">在下方快速配置 ADB 连接，保存到 <code>profiles/default.toml</code>。更多选项见 MAA 文档。</p>
+          <div class="conn-grid">
+            <div class="field"><label>ADB 路径</label><input type="text" id="conn-adb" placeholder="adb" /></div>
+            <div class="field"><label>连接地址</label><input type="text" id="conn-address" placeholder="127.0.0.1:5555 或 emulator-5554" /></div>
+            <div class="field"><label>触控模式</label>
+              <select id="conn-touch">
+                <option value="ADB">ADB</option>
+                <option value="MiniTouch">MiniTouch</option>
+                <option value="MaaTouch">MaaTouch</option>
+              </select>
+            </div>
+            <div class="field"><label>连接预设</label>
+              <select id="conn-preset">
+                <option value="">(默认)</option>
+                <option value="MuMuPro">MuMuPro</option>
+                <option value="Waydroid">Waydroid</option>
+                <option value="PlayCover">PlayCover</option>
+              </select>
+            </div>
+          </div>
+          <div class="conn-grid">
+            <label class="chk"><input type="checkbox" id="conn-deploy-pause" /> 部署时暂停游戏</label>
+            <label class="chk"><input type="checkbox" id="conn-adb-lite" /> 使用 adb-lite</label>
+            <label class="chk"><input type="checkbox" id="conn-kill-adb" /> 退出时杀掉 adb</label>
+            <label class="chk"><input type="checkbox" id="conn-user-res" /> 加载自定义资源 (resource/)</label>
+            <label class="chk"><input type="checkbox" id="conn-cpu-ocr" checked /> 使用 CPU OCR</label>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn primary" id="conn-save-btn">保存连接配置</button>
+            <button class="btn" id="conn-load-btn">读取当前配置</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 设置 -->
+      <section id="view-settings" class="view">
+        <div class="page-head">
+          <div>
+            <h1>设置</h1>
+            <p class="sub">环境与更新</p>
+          </div>
+        </div>
+        <div class="cards" id="status-cards"></div>
+        <div class="panel">
+          <h2>外观</h2>
+          <label class="field" style="max-width:260px">
+            <span>主题</span>
+            <select id="theme-select">
+              <option value="system">跟随系统</option>
+              <option value="light">亮色</option>
+              <option value="dark">暗色</option>
+            </select>
+          </label>
+          <div class="accent-row">
+            <span class="accent-label">强调色</span>
+            <div class="accent-swatches" id="accent-swatches"></div>
+            <input type="color" id="accent-custom" value="#4f8cff" title="自定义颜色" />
+          </div>
+        </div>
+        <div class="panel">
+          <h2>安全</h2>
+          <p class="sub" style="margin-bottom:10px">启用后访问所有 API 需要携带令牌，防止局域网内其他设备控制游戏</p>
+          <div class="toolbar" style="flex-wrap:wrap">
+            <span id="token-status" class="muted">状态：未启用</span>
+            <div class="spacer"></div>
+            <button class="btn" id="token-generate-btn">生成/重置令牌</button>
+            <button class="btn danger" id="token-disable-btn">关闭令牌</button>
+          </div>
+          <div id="token-holder" hidden style="margin-top:10px">
+            <label class="field" style="max-width:520px">
+              <span>当前令牌（复制保存，丢失需重置）</span>
+              <input type="text" id="token-value" readonly />
+            </label>
+            <div class="toolbar">
+              <button class="btn" id="token-copy-btn">复制令牌</button>
+              <label class="field" style="max-width:280px;flex:1">
+                <span>旧令牌（重置/关闭时验证用）</span>
+                <input type="password" id="token-current" placeholder="已启用时填写" />
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>更新</h2>
+          <div class="toolbar" style="flex-wrap:wrap">
+            <button class="btn" id="check-update-btn">检查更新</button>
+            <button class="btn" id="install-core-btn">安装 MaaCore 与资源</button>
+            <button class="btn" id="update-core-btn">更新 MaaCore 与资源</button>
+            <button class="btn" id="self-update-btn">更新 maa-cli</button>
+          </div>
+          <div id="update-info" class="update-info"></div>
+          <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
+            <label class="field" style="flex:1;min-width:260px;max-width:420px">
+              <span>更新代理（可选，如 http://192.168.10.110:7890）</span>
+              <input type="text" id="update-proxy" placeholder="留空则直连" />
+            </label>
+            <button class="btn" id="test-proxy-btn" style="align-self:flex-end">测试代理</button>
+            <button class="btn" id="save-proxy-btn" style="align-self:flex-end">保存代理</button>
+            <div id="proxy-test-result" class="update-info" style="flex-basis:100%"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>最近任务</h2>
+          <table class="table" id="history-table">
+            <thead><tr><th>任务</th><th>状态</th><th>开始</th><th>结束</th><th>退出码</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+      <!-- 关于 -->
+      <section id="view-about" class="view">
+        <div class="page-head">
+          <div>
+            <h1>关于</h1>
+            <p class="sub">项目介绍、部署方式、架构与规划</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="readme" id="readme-content">加载中…</div>
+        </div>
+      </section>
+    </main>
+
+    <div class="side-log" id="side-log" hidden>
+      <div class="side-log-head">
+        <b>实时日志</b>
+        <span id="side-log-count" class="muted"></span>
+        <div class="spacer"></div>
+        <button class="btn xs" id="side-log-copy" title="复制全部日志">复制</button>
+        <button class="btn xs" id="side-log-clear" title="清空日志">清空</button>
+        <button class="btn xs" id="side-log-close" title="收起日志面板">收起»</button>
+      </div>
+      <pre class="side-log-out" id="side-log-output"></pre>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js?v=20260805s"></script>
+</body>
+</html>
