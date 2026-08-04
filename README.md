@@ -175,11 +175,7 @@ maa-web/
 
 ### 测试
 
-详见 [TESTING.md](TESTING.md)。自动化测试位于 `/tmp/opencode/`（jsdom 前端 + 隔离环境服务端集成），改动后需全量回归。
-
-```bash
-cd /tmp/opencode && for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu ui-scrcpy ui-token ui-quick ui-autosave ui-update ui-stages; do timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1
-```
+详见 [TESTING.md](TESTING.md)。自动化测试脚本（jsdom 前端 + 隔离环境服务端集成）为**开发机本机文件，未纳入本仓库**，位于开发机的 `/tmp/opencode/` 目录；改动后需在开发机全量回归。测试脚本清单与运行命令见 [TESTING.md](TESTING.md)。
 
 ## 未来任务
 

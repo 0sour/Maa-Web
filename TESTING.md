@@ -4,12 +4,15 @@
 
 ## 一、自动化测试
 
-全部测试位于 `/tmp/opencode/`，jsdom 或隔离进程运行，**不依赖真实 maa-cli / 设备 / 网络**，可在无设备环境下完整运行。
+> **测试脚本为开发机本机文件，未纳入本仓库**（位于开发机的 `/tmp/opencode/` 目录）。远程/新环境使用本仓库时，需在开发机上按本清单保持测试脚本；命令示例中的路径是开发机路径。
+
+全部测试为 jsdom 或隔离进程运行，**不依赖真实 maa-cli / 设备 / 网络**，可在无设备环境下完整运行。
 
 ### 运行方式
 
 ```bash
-cd /tmp/opencode && for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu server-api; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done
+# 开发机执行（脚本位于开发机 /tmp/opencode/）
+cd /tmp/opencode && for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu ui-scrcpy ui-token ui-quick ui-autosave ui-update ui-stages ui-about ui-roguelike ui-copilot ui-configs; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1
 ```
 
 改动代码后必须全量回归；新增功能必须配套新测试文件并加入上面的清单。
@@ -34,8 +37,8 @@ cd /tmp/opencode && for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-
 
 | 模块 | 自动化 | 最近一次 | 备注 |
 |---|---|---|---|
-| 服务端 API | 32 项 PASS | 2026-08-04 | 全绿 |
-| 前端 UI（11 个文件） | 全绿 | 2026-08-04 | 全绿 |
+| 服务端 API | 32 项 PASS | 2026-08-06 | 全绿 |
+| 前端 UI（19 个文件） | 全绿 | 2026-08-06 | 全绿 |
 | 识别结果（真实识别） | 部分 | - | 见手动清单 #2 |
 | 定时任务（真实触发） | 部分 | - | 调度逻辑已单测，真实触发见手动清单 #6 |
 | 设备截图（真实帧率） | 部分 | - | 帧率上限取决于 adb，见手动清单 #3 |

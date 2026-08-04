@@ -2,9 +2,9 @@
 
 ws-scrcpy（https://github.com/NetrisTV/ws-scrcpy）— Web 版 scrcpy 远程控制服务，作为 maa-web 的远程控制后端独立运行。
 
-## 部署位置
+## 部署位置（本机部署路径，非仓库内容）
 
-- 源码/构建目录：`/tmp/opencode/ws-scrcpy`
+- 源码/构建目录：`/tmp/opencode/ws-scrcpy`（开发机本机目录，未纳入本仓库）
 - 运行目录：`/tmp/opencode/ws-scrcpy/dist`
 - 服务端口：**8000**（HTTP）
 - 依赖 adb：`<项目目录>/bin/platform-tools/`（启动时加入 PATH）
