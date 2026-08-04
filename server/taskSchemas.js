@@ -260,7 +260,7 @@ const TASK_SCHEMAS = {
         name: 'mode',
         label: '模式',
         type: 'select',
-        options: [['0', '刷经验'], ['1', '刷源石锭'], ['2', '兼顾 0 和 1（已弃用）'], ['3', '通关'], ['4', '凹开局'], ['5', '刷坍缩范式']],
+        options: null, /* 模式选项由 /api/roguelike 按主题动态提供 */
         defaultValue: '0',
         cli: { flag: '--mode' },
       },

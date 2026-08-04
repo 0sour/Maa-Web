@@ -779,6 +779,12 @@ function buildQuickInput(f) {
       return (d.difficulties || []).map((x) => ({ value: x.value, label: x.label }));
     });
   }
+  if (f.name === 'mode' && state.currentType === 'roguelike') {
+    return buildPicker('', { 'data-name': f.name, placeholder: '选择模式' }, null, () => {
+      const d = state.roguelikeData || {};
+      return (d.modes || []).map((x) => ({ value: x.value, label: x.label }));
+    });
+  }
   if (f.type === 'select' || f.type === 'customTasks') {
     const sel = elt('select', { 'data-name': f.name });
     for (const opt of f.options || []) {

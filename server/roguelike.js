@@ -77,6 +77,17 @@ function difficulties(theme) {
   return list;
 }
 
+/* 模式选项（参考 maa-cli roguelike --mode；5 坍缩范式仅萨米） */
+function modes(theme) {
+  const list = [
+    { value: '0', label: '刷分（经验）' },
+    { value: '1', label: '刷源石锭' },
+    { value: '4', label: '凹开局（第三层后）' },
+  ];
+  if (theme === 'Sami') list.push({ value: '5', label: '刷坍缩范式（仅萨米）' });
+  return list;
+}
+
 let dataDir = '';
 let opCache = {}; // theme -> { mtime, groups, operators }
 
@@ -120,7 +131,7 @@ async function getOperators(theme) {
 async function list(theme) {
   const squads = (SQUADS[theme] || []).map(([value, label]) => ({ value, label }));
   const { groups, operators } = await getOperators(theme);
-  return { theme, squads, difficulties: difficulties(theme), groups, operators };
+  return { theme, squads, difficulties: difficulties(theme), modes: modes(theme), groups, operators };
 }
 
 module.exports = { init, list };
