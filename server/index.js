@@ -1063,7 +1063,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     if (auth.enabled()) console.log('[maa-web] 访问令牌已启用');
   });
   loadUpdateProxy();
-  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); });
+  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); copilot.init(d.data); });
   scheduler.init({
     getConfigDir: async () => (await configDirs()).config,
     runDailyQueue: async ({ profile, name }) => {

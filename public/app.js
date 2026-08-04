@@ -798,7 +798,7 @@ function renderQuickForm() {
     }
   }
   if (state.currentType === 'copilot') {
-    // 作业列表区：URI 变化后自动预览展示全部作业
+    // 作业列表区：URI 变化后自动预览展示全部作业；已导入的作业常驻显示
     const urisEl = form.querySelector('[data-name="uris"]');
     const listBox = elt('div', { id: 'quick-copilot-list', class: 'copilot-list' });
     const listWrap = elt('div', { class: 'field full' }, [
@@ -806,6 +806,8 @@ function renderQuickForm() {
       listBox,
     ]);
     form.append(listWrap);
+    const jobs = loadCopilotJobs();
+    if (jobs && jobs.length) renderCopilotList(listBox, { name: '', items: jobs });
     if (urisEl) {
       const doPreview = () => loadCopilotPreview(urisEl.value);
       urisEl.addEventListener('change', doPreview);
@@ -1106,6 +1108,21 @@ async function loadRoguelikeData(theme) {
   }
 }
 
+/* 抄作业：作业列表持久化（常驻） */
+function saveCopilotJobs(items) {
+  state.copilotJobs = items || [];
+  try { localStorage.setItem('maa-web-copilot-jobs', JSON.stringify(items || [])); } catch { /* ignore */ }
+}
+
+function loadCopilotJobs() {
+  if (state.copilotJobs) return state.copilotJobs;
+  try { return JSON.parse(localStorage.getItem('maa-web-copilot-jobs') || 'null'); } catch { return null; }
+}
+
+function copilotCheckedState() {
+  try { return JSON.parse(localStorage.getItem('maa-web-copilot-checked') || 'null'); } catch { return null; }
+}
+
 /* 抄作业：解析作业并展示列表（作业集自动展开） */
 async function loadCopilotPreview(value) {
   const box = $('#quick-copilot-list');
@@ -1115,6 +1132,7 @@ async function loadCopilotPreview(value) {
   box.innerHTML = '<div class="copilot-loading">正在获取作业…</div>';
   try {
     const res = await api('/api/copilot/preview', { method: 'POST', body: JSON.stringify({ input: first }) });
+    saveCopilotJobs(res.items || []);
     renderCopilotList(box, res);
   } catch (err) {
     box.innerHTML = '';
@@ -1130,8 +1148,13 @@ function renderCopilotList(box, data) {
     box.append(elt('div', { class: 'muted', style: 'padding:8px' }, '未解析到作业'));
     return;
   }
+  const savedChecked = copilotCheckedState();
   const list = elt('div', { class: 'copilot-list-inner' });
-  const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; });
+  const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; saveChecked(); });
+  const saveChecked = () => {
+    const sel = [...list.querySelectorAll('input[type=checkbox]:checked')].map((c) => c.dataset.uri);
+    try { localStorage.setItem('maa-web-copilot-checked', JSON.stringify(sel)); } catch { /* ignore */ }
+  };
   const head = elt('div', { class: 'copilot-list-head' }, [
     elt('span', { class: 'copilot-count' }, `共 ${items.length} 项${data.name ? `（${data.name}）` : ''}`),
     elt('div', { class: 'spacer' }),
@@ -1140,12 +1163,16 @@ function renderCopilotList(box, data) {
   ]);
   for (const it of items) {
     const row = elt('label', { class: 'copilot-item' }, [
-      elt('input', { type: 'checkbox', checked: true, 'data-uri': it.uri }),
+      elt('input', { type: 'checkbox', 'data-uri': it.uri }),
       elt('span', { class: 'copilot-stage' }, it.stage || it.uri),
       ...(it.author ? [elt('span', { class: 'copilot-meta' }, `作者 ${it.author}${it.views ? ` · ${it.views} 浏览` : ''}`)] : []),
       ...(it.description ? [elt('span', { class: 'copilot-desc', title: it.description }, String(it.description).slice(0, 60))] : []),
       ...(it.difficulty && it.difficulty !== '0' ? [elt('span', { class: 'copilot-meta' }, `难度 ${it.difficulty}`)] : []),
     ]);
+    const cb = row.querySelector('input');
+    if (Array.isArray(savedChecked)) cb.checked = savedChecked.includes(it.uri);
+    else cb.checked = true;
+    cb.addEventListener('change', saveChecked);
     list.append(row);
   }
   box.append(head, list);

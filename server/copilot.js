@@ -1,9 +1,64 @@
 'use strict';
 
+const path = require('path');
 const fsp = require('fs/promises');
 
 const PRTS_COPILOT_GET = 'https://prts.maa.plus/copilot/get/';
 const PRTS_SET_GET = 'https://prts.maa.plus/set/get?id=';
+
+let dataDir = '';
+let stageIdMap = {}; // stageId -> code
+let overviewMtime = 0;
+
+function init(dir) {
+  dataDir = dir || '';
+}
+
+/* 加载关卡 stageId→code 映射（MAA 资源 overview.json，mtime 自动重载） */
+async function ensureStageMap() {
+  const file = path.join(dataDir, 'resource', 'Arknights-Tile-Pos', 'overview.json');
+  try {
+    const st = await fsp.stat(file);
+    if (st.mtimeMs === overviewMtime && Object.keys(stageIdMap).length) return;
+    overviewMtime = st.mtimeMs;
+    const o = JSON.parse(await fsp.readFile(file, 'utf8'));
+    stageIdMap = {};
+    for (const v of Object.values(o)) {
+      if (v && v.stageId && v.code) stageIdMap[v.stageId] = v.code;
+    }
+  } catch { /* ignore */ }
+}
+
+function stageCode(stageId) {
+  return stageIdMap[String(stageId || '')] || String(stageId || '');
+}
+
+/* 解析作业 content（可能是字符串形式的嵌套 JSON） */
+function parseContent(raw) {
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+  return raw || null;
+}
+
+async function getSingle(id) {
+  await ensureStageMap();
+  const j = await fetchJson(PRTS_COPILOT_GET + id);
+  if (j.status_code !== 200 || !j.data) return null;
+  const c = parseContent(j.data.content);
+  if (!c) return null;
+  const stageId = c.stage_name || '';
+  return {
+    id: Number(j.data.id || id),
+    uri: `maa://${id}`,
+    stage: stageCode(stageId) || stageId || `作业 ${id}`,
+    difficulty: c.difficulty || '',
+    author: j.data.uploader || '',
+    views: j.data.views || 0,
+    description: (c.documentation && (c.documentation.title || c.documentation.details || '')) || '',
+    minVersion: c.minimum_required || '',
+  };
+}
 
 /* 解析作业输入为 { type: 'code'|'set'|'file', id/path } */
 function parseCode(input) {
@@ -22,22 +77,6 @@ async function fetchJson(url, timeout = 10000) {
   const res = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'User-Agent': 'maa-web' } });
   if (!res.ok) throw new Error(`作业站返回 HTTP ${res.status}`);
   return res.json();
-}
-
-async function getSingle(id) {
-  const j = await fetchJson(PRTS_COPILOT_GET + id);
-  if (j.status_code !== 200 || !j.data || !j.data.content) return null;
-  const c = j.data.content;
-  return {
-    id: Number(j.data.id || id),
-    uri: `maa://${id}`,
-    stage: c.stage_name || '',
-    difficulty: c.difficulty || '',
-    author: j.data.uploader || '',
-    views: j.data.views || 0,
-    description: (c.documentation && (c.documentation.title || c.documentation.details || '')) || '',
-    minVersion: c.minimum_required || '',
-  };
 }
 
 async function getSet(id) {
@@ -61,7 +100,7 @@ async function getFile(path) {
   const items = tasks.filter((t) => t && t.stage_name).map((t) => ({
     id: 0,
     uri: path,
-    stage: t.stage_name,
+    stage: stageCode(t.stage_name) || t.stage_name,
     difficulty: t.difficulty || '',
     author: '',
     views: 0,
@@ -81,4 +120,4 @@ async function preview(input) {
   return { name: one.stage, description: one.description, items: [one] };
 }
 
-module.exports = { preview, parseCode };
+module.exports = { init, preview, parseCode };
