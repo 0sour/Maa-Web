@@ -88,6 +88,21 @@ function modes(theme) {
   return list;
 }
 
+/* 开局招募组合（参考官方 UpdateRoguelikeRolesList；界园有额外选项） */
+function roles(theme) {
+  const list = [
+    { value: '先手必胜', label: '先手必胜' },
+    { value: '稳扎稳打', label: '稳扎稳打' },
+    { value: '取长补短', label: '取长补短' },
+  ];
+  if (theme === 'JieGarden') {
+    list.push({ value: '灵活部署', label: '灵活部署' });
+    list.push({ value: '坚不可摧', label: '坚不可摧' });
+  }
+  list.push({ value: '随心所欲', label: '随心所欲' });
+  return list;
+}
+
 let dataDir = '';
 let opCache = {}; // theme -> { mtime, groups, operators }
 
@@ -131,7 +146,7 @@ async function getOperators(theme) {
 async function list(theme) {
   const squads = (SQUADS[theme] || []).map(([value, label]) => ({ value, label }));
   const { groups, operators } = await getOperators(theme);
-  return { theme, squads, difficulties: difficulties(theme), modes: modes(theme), groups, operators };
+  return { theme, squads, difficulties: difficulties(theme), modes: modes(theme), roles: roles(theme), groups, operators };
 }
 
 module.exports = { init, list };

@@ -405,13 +405,27 @@ function fieldInput(f, item) {
   wrap.append(elt('label', {}, f.label));
   const cur = (item.params || {})[f.name];
   let input;
+  const isRoguelike = item.type === 'Roguelike';
   switch (f.type) {
     case 'select': {
       input = elt('select');
       const opts = f.options.map((o) => (Array.isArray(o) ? { v: o[0], l: o[1] } : { v: o, l: o }));
       for (const o of opts) input.append(elt('option', { value: o.v }, o.l));
       if (cur !== undefined && cur !== '') input.value = String(cur);
-      input.addEventListener('change', () => setParam(item, f, input.value));
+      input.addEventListener('change', () => {
+        setParam(item, f, input.value);
+        // 队列侧肉鸽：切换主题刷新分队/难度/模式/干员选项并清空已选
+        if (isRoguelike && f.name === 'theme') {
+          loadRoguelikeData(input.value);
+          const box = wrap.closest('.settings-groups');
+          if (box) {
+            for (const n of ['squad', 'roles', 'core_char', 'difficulty', 'mode', 'collectible_mode_squad']) {
+              const el = box.querySelector(`[data-param="${n}"]`);
+              if (el) { el.value = ''; delete el.dataset.raw; }
+            }
+          }
+        }
+      });
       break;
     }
     case 'checkbox': {
@@ -456,13 +470,15 @@ function fieldInput(f, item) {
       const vals = new Set(cur && typeof cur === 'object' && !Array.isArray(cur) ? Object.keys(cur) : []);
       const box = elt('div', { class: 'chips' });
       for (const opt of f.options) {
-        const on = vals.has(opt);
-        const chip = elt('span', { class: `chip ${on ? 'on' : ''}` }, opt);
+        const v = Array.isArray(opt) ? opt[0] : opt;
+        const l = Array.isArray(opt) ? opt[1] : opt;
+        const on = vals.has(v);
+        const chip = elt('span', { class: `chip ${on ? 'on' : ''}` }, l);
         chip.addEventListener('click', () => {
           const arr = Array.isArray(item.params[f.name]) ? item.params[f.name].slice()
             : (item.params[f.name] && typeof item.params[f.name] === 'object' ? Object.keys(item.params[f.name]) : []);
-          const idx = arr.indexOf(opt);
-          if (idx >= 0) arr.splice(idx, 1); else arr.push(opt);
+          const idx = arr.indexOf(v);
+          if (idx >= 0) arr.splice(idx, 1); else arr.push(v);
           setParam(item, f, arr);
           renderQueueSettings();
         });
@@ -484,6 +500,26 @@ function fieldInput(f, item) {
     default: {
       if (f.name === 'stage') {
         input = buildStagePicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name }, (v) => setParam(item, f, v));
+        wrap.append(input);
+        if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
+        return wrap;
+      }
+      if (isRoguelike && (f.name === 'squad' || f.name === 'roles' || f.name === 'core_char')) {
+        input = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择' }, (v) => setParam(item, f, v), () => {
+          const d = state.roguelikeData || {};
+          if (f.name === 'squad') return (d.squads || []).map((s) => ({ value: s.value, label: s.label }));
+          if (f.name === 'roles') return (d.roles || []).map((r) => ({ value: r.value, label: r.label }));
+          return (d.operators || []).map((o) => ({ value: o, label: o }));
+        });
+        wrap.append(input);
+        if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
+        return wrap;
+      }
+      if (isRoguelike && f.name === 'difficulty') {
+        input = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择难度' }, (v) => setParam(item, f, v), () => {
+          const d = state.roguelikeData || {};
+          return (d.difficulties || []).map((x) => ({ value: x.value, label: x.label }));
+        });
         wrap.append(input);
         if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
         return wrap;
