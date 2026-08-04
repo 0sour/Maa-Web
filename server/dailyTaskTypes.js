@@ -70,7 +70,7 @@ const TASK_TYPES = [
       { name: 'penguin_id', label: '企鹅物流 ID', type: 'text', group: 'advanced' },
       { name: 'report_to_yituliu', label: '上报一图流', type: 'checkbox', group: 'advanced' },
       { name: 'yituliu_id', label: '一图流 ID', type: 'text', group: 'advanced' },
-      { name: 'server', label: '服务器', type: 'select', options: ['', 'CN', 'US', 'JP', 'KR'], hint: '影响识别结果上传', group: 'advanced' },
+      { name: 'server', label: '服务器', type: 'select', options: [['', '默认'], ['CN', '国服'], ['US', '美服'], ['JP', '日服'], ['KR', '韩服']], hint: '影响识别结果上传', group: 'advanced' },
     ],
   },
   {

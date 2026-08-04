@@ -44,14 +44,8 @@
   - 现状：抄作业只能输入作业代码（maa:///prts://）或填写服务器上的文件路径，手机端无法直接上传本地作业文件
   - 实施：`POST /api/copilot/upload`（multipart 或 base64 JSON 上传 → 校验作业 JSON（stage_name/actions）→ 保存 `config/copilot/upload-<时间戳>.json` → 返回路径 + 解析信息）；前端三个抄作业入口加「上传作业文件」按钮（文件选择 → 上传 → 自动填入/加入列表）；队列 Copilot 上传后加入作业列表（勾选即生效）
   - 成本：低；价值：中（手机端导入本地作业的刚需路径）
-- [ ] **R 修复定时任务不可用（记录于 2026-08-06）**：
-  - 需求：定时任务（schedules 定时执行队列）目前处于不可用状态，需要单独找时间排查修复
-  - 现状：待排查——可能原因：容器重启后 schedules 未持久化/加载、tick 补偿窗口（COMPENSATE_MS=3h）过期不触发、Docker 容器内时间/时钟问题、或 fire 时队列读取失败
-  - 排查建议：查看容器日志 `[scheduler]` 输出、检查 `config/maa-web/schedules.json` 是否在容器内正确落盘、手动触发验证（接口手动 fire 或临时缩短 tick 间隔）、确认 applyConfig/runDailyQueue 链路无异常
-- [ ] **S 修复公招识别不可用（记录于 2026-08-06）**：
-  - 需求：公招识别（Recruit 识别任务）目前处于不可用状态，需排查修复
-  - 现状：待排查——可能原因：tool 任务文件写入/读取失败、`maa run tool` 输出解析（extractRecruitResult 依赖日志格式）、词条页面判定条件（需已进入公招词条选择页且有空闲槽位）、Docker 容器内截图/OCR 环境（libatomic/资源缺失）
-  - 排查建议：手动在容器内跑一次公招识别（`maa run tool` + tool.json Recruit 任务）观察输出与退出码；检查 `state/maa/logs` 中本次运行的识别日志结构是否被 `extractRecruitResult` 正确解析；确认快速任务页「公招识别」入口的提交参数
+- [x] **R 修复定时任务不可用**（2026-08-06 完成）：根因=**容器时区 UTC 与用户本地差 8 小时**，定时任务按 UTC 触发导致时间错位；修复=compose 加 `TZ=Asia/Shanghai`（node 自带 ICU 时区数据，无需 tzdata）。API/落盘/tick 逻辑验证正常
+- [x] **S 修复公招识别不可用**（2026-08-06 完成）：实测链路验证正常（任务执行、asst.log callback 格式、`maa dir log`=/state/maa/debug、分辨率 1080x1920 支持）；「不可用」体验根因=未进入词条页时失败且无原因提示；增强=无识别结果时自动读取日志中最近的 `SubTaskError`（taskchain=Recruit）并提示具体识别不到的任务（如 `RecruitBegin 识别不到页面`）
 - [ ] **P 外部通知**（搁置，需额外 docker 部署，后续评估）：任务完成/失败推送（Bark/ServerChan/Telegram/Discord/Webhook）
 
 ### P1 UI/UX
@@ -73,6 +67,7 @@
     2. `server/dailyTaskTypes.js`：CLIENTS 常量与 series/server/extra_tags_mode/facility/drones/formation_index/support_unit_usage/theme 字段 options → 标签对
     3. `public/app.js`：buildQuickInput select 分支 + fieldInput chips 分支支持 `[值, 标签]` 对（**回退需同时还原这两处渲染逻辑**）
   - 未覆盖：boolMap 类（凹开局期望等，hint 已有中文对照）留待后续
+- [x] **N 剩余汉化收尾**（2026-08-06 完成）：boolMap 选项（热水壶/护盾/源石锭/…）本已汉化；补上最后残留：Recruit「服务器」选项 `['','CN','US','JP','KR']` → `[['','默认'],['CN','国服'],…]`（server/dailyTaskTypes.js）；全部 select/chips/boolMap 选项均已为 `[值, 标签]` 中文对
 - [x] **K 设备状态页整合**（2026-08-06 完成）：设备页新增「实例状态」卡片——连接状态（点/设备名/序列号/触控/adb）+ 实时截图缩略（5s 轮询刷新）+ 任务运行状态 + 操作（远程控制/全屏画面/连接配置），openScrcpyWindow 抽为公共函数
 - [x] **L 快速任务扩展**（2026-08-06 判定不可行）：maa-cli 0.7.5 tool 任务不支持 `Gacha`/`MiniGame` 类型（`unknown variant`），无法实现抽卡十连/小游戏刷取；等 maa-cli 后续版本支持后再评估
 - [x] **M ws-scrcpy 集成优化**（2026-08-06 完成）：见专项

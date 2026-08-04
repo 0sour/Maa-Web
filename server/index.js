@@ -129,6 +129,32 @@ async function extractCallback(logDir, what, startIso = null) {
 
 const extractRecruitResult = (logDir, startIso) => extractCallback(logDir, 'RecruitResult', startIso);
 
+async function extractRecruitFailure(logDir, startIso) {
+  try {
+    const logFile = path.join(logDir, 'asst.log');
+    const text = await fsp.readFile(logFile, 'utf8');
+    const start = startIso ? new Date(startIso).getTime() : 0;
+    const lines = text.split('\n').filter((l) => l.includes('SubTaskError') && l.includes('"taskchain":"Recruit"'));
+    if (!lines.length) return '';
+    let latest = null;
+    for (const l of lines) {
+      if (start) {
+        const m = l.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+        if (m && new Date(m[1].replace(' ', 'T')).getTime() < start) continue;
+      }
+      latest = l;
+    }
+    if (!latest) return '';
+    const idx = latest.indexOf('{');
+    if (idx < 0) return '';
+    const data = JSON.parse(latest.slice(idx));
+    const first = Array.isArray(data.first) ? data.first.join(',') : '';
+    return first ? `（最近失败任务：${first} 识别不到页面）` : '';
+  } catch {
+    return '';
+  }
+}
+
 function formatRecruitResult(details) {
   const out = [];
   const tags = Array.isArray(details.tags) ? details.tags.filter(Boolean) : [];
@@ -209,7 +235,8 @@ runner.onFinished(async (task) => {
     if (type === 'Recruit') {
       const details = await extractRecruitResult(d.log, task.startedAt);
       if (!details) {
-        runner.appendOutput(task, '[公招识别] 本次运行未产生识别结果：请确认已进入公招词条选择页面，且存在空闲（未在招募中的）槽位');
+        const why = await extractRecruitFailure(d.log, task.startedAt);
+        runner.appendOutput(task, `[公招识别] 本次运行未产生识别结果：请确认已进入公招词条选择页面，且存在空闲（未在招募中的）槽位${why}`);
         return;
       }
       const lines = formatRecruitResult(details);
