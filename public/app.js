@@ -31,6 +31,7 @@ const state = {
   schedules: [],
   scheduleProfiles: [],
   scheduleForm: { id: '', name: '', weekdays: [], times: [], profile: '' },
+  configs: [],
   lastQueueResults: null,
 };
 
@@ -701,6 +702,8 @@ async function runQueue() {
     if (addr) body.addr = addr;
     if ($('#queue-batch').checked) body.common.batch = true;
     if ($('#queue-dryrun').checked) body.common.dryRun = true;
+    const postAction = $('#queue-post-action').value;
+    if (postAction) body.postAction = postAction;
     const res = await api('/api/queue/run', { method: 'POST', body: JSON.stringify(body) });
     state.currentTaskId = res.id;
     appendLog(`[队列] 开始每日任务（${res.enabledCount} 项启用）`, 'task');
@@ -1561,6 +1564,88 @@ async function loadScheduleProfiles() {
   } catch { /* ignore */ }
 }
 
+async function loadScheduleConfigs() {
+  try {
+    const res = await api('/api/configs');
+    const sel = $('#schedule-config');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">跟随当前队列</option>';
+    for (const c of res.items || []) {
+      sel.append(elt('option', { value: c.name }, `${c.name}（${c.queueCount} 项）`));
+    }
+    if (current) sel.value = current;
+  } catch { /* ignore */ }
+}
+
+/* ---------------- 配置快照（多套队列配置切换） ---------------- */
+
+async function loadConfigs() {
+  try {
+    const res = await api('/api/configs');
+    state.configs = res.items || [];
+    renderConfigs();
+  } catch (err) {
+    $('#config-list').innerHTML = `<div class="empty">加载失败：${esc(err.message)}</div>`;
+  }
+}
+
+function renderConfigs() {
+  const box = $('#config-list');
+  box.innerHTML = '';
+  if (!state.configs.length) {
+    box.append(elt('div', { class: 'empty' }, '暂无已保存的配置。设置好任务队列后，输入名称点「保存当前队列为配置」。'));
+    return;
+  }
+  for (const c of state.configs) {
+    const row = elt('div', { class: 'config-row' }, [
+      elt('div', { class: 'config-info' }, [
+        elt('b', {}, esc(c.name)),
+        elt('span', { class: 'muted' }, `${c.queueCount} 项任务${c.profile ? ' · 连接配置 ' + esc(c.profile) : ''}${c.updatedAt ? ' · 更新于 ' + fmtTime(c.updatedAt) : ''}`),
+      ]),
+      elt('div', { class: 'toolbar' }, [
+        elt('button', { class: 'btn sm', onclick: () => applyConfigByName(c.name) }, '切换到此配置'),
+        elt('button', { class: 'btn sm danger', onclick: () => deleteConfigByName(c.name) }, '删除'),
+      ]),
+    ]);
+    box.append(row);
+  }
+}
+
+async function saveConfig() {
+  const name = $('#config-name').value.trim();
+  if (!name) { toast('请填写配置名称', 'error'); return; }
+  try {
+    await api('/api/configs', { method: 'POST', body: JSON.stringify({ name }) });
+    $('#config-name').value = '';
+    toast(`已保存配置「${name}」`, 'success');
+    loadConfigs();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function applyConfigByName(name) {
+  if (!confirm(`切换到此配置？当前队列内容将被覆盖（${name}）`)) return;
+  try {
+    const r = await api(`/api/configs/${encodeURIComponent(name)}/apply`, { method: 'POST' });
+    toast(`已切换到配置「${name}」（${r.queueCount} 项）`, 'success');
+    loadQueue();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteConfigByName(name) {
+  if (!confirm(`确定删除配置「${name}」？`)) return;
+  try {
+    await api(`/api/configs/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    toast('已删除', 'success');
+    loadConfigs();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
 function renderSchedules() {
   const list = $('#schedule-list');
   list.innerHTML = '';
@@ -1623,12 +1708,18 @@ function openScheduleModal(id = '') {
     weekdays: item ? [...item.weekdays] : [],
     times: item ? [...item.times] : [],
     profile: item ? item.profile : '',
+    config: item ? item.config : '',
+    postAction: item ? item.postAction : '',
   };
   $('#schedule-modal-title').textContent = item ? '编辑定时任务' : '新增定时任务';
   $('#schedule-name').value = state.scheduleForm.name;
   loadScheduleProfiles().then(() => {
     $('#schedule-profile').value = state.scheduleForm.profile;
   });
+  loadScheduleConfigs().then(() => {
+    $('#schedule-config').value = state.scheduleForm.config;
+  });
+  $('#schedule-post-action').value = state.scheduleForm.postAction;
   renderWeekdayPicker();
   renderScheduleTimes();
   $('#schedule-modal').showModal();
@@ -1686,6 +1777,8 @@ async function saveSchedule() {
     weekdays: f.weekdays,
     times: f.times,
     profile: f.profile,
+    config: $('#schedule-config').value,
+    postAction: $('#schedule-post-action').value,
   };
   if (!body.name) { toast('请填写任务名称', 'error'); return; }
   if (!body.times.length) { toast('请至少添加一个执行时间', 'error'); return; }
@@ -2717,6 +2810,7 @@ function bindEvents() {
     if (e.key === 'Enter') { e.preventDefault(); addScheduleTime(); }
   });
   $('#schedule-modal').addEventListener('close', () => { $('#schedule-form').reset(); });
+  $('#config-save-btn').addEventListener('click', saveConfig);
 }
 
 async function init() {
@@ -2745,6 +2839,7 @@ async function init() {
   loadDeviceOptions();
   loadDeviceStatus();
   loadTodayStages();
+  loadConfigs();
   setInterval(loadDeviceStatus, 5000);
   setInterval(() => { if ($('#view-queue').classList.contains('active')) loadTodayStages(); }, 600000);
 }

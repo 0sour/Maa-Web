@@ -35,6 +35,8 @@ function validate(data) {
     times,
     weekdays,
     profile: String(data.profile || '').trim(),
+    config: String(data.config || '').trim(),
+    postAction: String(data.postAction || '').trim(),
     enabled: data.enabled !== false,
   };
 }
@@ -50,9 +52,10 @@ class Scheduler {
     this.timer = null;
   }
 
-  init({ getConfigDir, runDailyQueue, intervalMs = TICK_MS }) {
+  init({ getConfigDir, runDailyQueue, applyConfig, intervalMs = TICK_MS }) {
     this.getConfigDir = getConfigDir;
     this.runDailyQueue = runDailyQueue;
+    this.applyConfig = applyConfig || null;
     this.timer = setInterval(() => this.tick(), intervalMs);
     if (this.timer.unref) this.timer.unref();
     this.tickAt = Date.now();
@@ -127,6 +130,8 @@ class Scheduler {
         weekdays: item.weekdays,
         times: item.times,
         profile: item.profile,
+        config: item.config,
+        postAction: item.postAction,
         nextRun: next ? next.toISOString() : null,
       };
     });
@@ -165,7 +170,18 @@ class Scheduler {
   async fire(item, at) {
     if (!this.runDailyQueue) return;
     try {
-      await this.runDailyQueue({ profile: item.profile, name: `[定时] ${item.name}` });
+      if (item.config && this.applyConfig) {
+        try {
+          await this.applyConfig(item.config);
+        } catch (err) {
+          console.log(`[scheduler] config "${item.config}" apply failed: ${err.message}`);
+        }
+      }
+      await this.runDailyQueue({
+        profile: item.profile,
+        name: `[定时] ${item.name}`,
+        postAction: item.postAction,
+      });
       console.log(`[scheduler] fired ${item.name} at ${fmtSlot(at)}`);
     } catch (err) {
       console.log(`[scheduler] skip ${item.name}: ${err.message}`);

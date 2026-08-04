@@ -122,6 +122,12 @@
             <label>设备 <select id="queue-device"></select></label>
             <label class="chk"><input type="checkbox" id="queue-batch" /> 批量模式</label>
             <label class="chk"><input type="checkbox" id="queue-dryrun" /> 试运行</label>
+            <label>完成后动作 <select id="queue-post-action">
+              <option value="">无</option>
+              <option value="close">关闭游戏</option>
+              <option value="suspend">休眠</option>
+              <option value="shutdown">关机</option>
+            </select></label>
             <label>日志级别 <select id="queue-log-level">
               <option value="">默认 (Warn)</option>
               <option value="Error">Error</option>
@@ -322,6 +328,17 @@
               <label class="field"><span>连接配置</span>
                 <select id="schedule-profile"><option value="">跟随全局配置</option></select>
               </label>
+              <label class="field"><span>队列配置（触发时先切换）</span>
+                <select id="schedule-config"><option value="">跟随当前队列</option></select>
+              </label>
+              <label class="field"><span>完成后动作</span>
+                <select id="schedule-post-action">
+                  <option value="">无</option>
+                  <option value="close">关闭游戏</option>
+                  <option value="suspend">休眠</option>
+                  <option value="shutdown">关机</option>
+                </select>
+              </label>
             </div>
             <div class="sm-foot">
               <button type="button" class="btn sm" id="schedule-cancel">取消</button>
@@ -466,6 +483,18 @@
           </div>
         </div>
         <div class="panel">
+          <h2>配置管理</h2>
+          <p class="sub" style="margin-bottom:10px">将当前任务队列保存为命名配置，随时一键切换；定时任务可关联指定配置（触发时先切换配置再执行）。</p>
+          <div class="toolbar" style="flex-wrap:wrap">
+            <label class="field" style="flex:1;min-width:220px;max-width:300px">
+              <span>配置名称</span>
+              <input type="text" id="config-name" placeholder="如：日常/活动/肉鸽周" />
+            </label>
+            <button class="btn primary" id="config-save-btn" style="align-self:flex-end">保存当前队列为配置</button>
+          </div>
+          <div id="config-list" class="config-list" style="margin-top:10px"></div>
+        </div>
+        <div class="panel">
           <h2>最近任务</h2>
           <table class="table" id="history-table">
             <thead><tr><th>任务</th><th>状态</th><th>开始</th><th>结束</th><th>退出码</th><th></th></tr></thead>
@@ -501,6 +530,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="app.js?v=20260806f"></script>
+  <script src="app.js?v=20260806g"></script>
 </body>
 </html>

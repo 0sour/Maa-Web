@@ -347,6 +347,14 @@ textarea.editor {
 .conn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 
 /* ---------- file list ---------- */
+.config-list { display: flex; flex-direction: column; gap: 6px; }
+.config-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+}
+.config-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.config-info .muted { font-size: 12px; }
+.config-row .toolbar { gap: 6px; }
 .file-list { display: flex; flex-direction: column; gap: 4px; }
 .file-item {
   display: flex; align-items: center; gap: 10px;

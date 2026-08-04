@@ -191,6 +191,8 @@ function formatOperBox(details) {
 
 runner.onFinished(async (task) => {
   try {
+    const postKey = pendingPostActions[task.id];
+    if (postKey) await runPostAction(task, postKey);
     const cmd = task.command || [];
     if (cmd[0] !== 'run') return;
     const d = await configDirs();
@@ -332,6 +334,94 @@ async function queueFile() {
   return path.join(d.config, 'maa-web', 'queue.json');
 }
 
+async function configsDir() {
+  const d = await configDirs();
+  if (!d.config) return null;
+  return path.join(d.config, 'maa-web', 'configs');
+}
+
+/* ---------- 配置快照管理（多套队列配置切换） ---------- */
+
+async function listConfigs() {
+  const dir = await configsDir();
+  if (!dir) return [];
+  try {
+    const entries = await fsp.readdir(dir);
+    const out = [];
+    for (const f of entries) {
+      if (!f.endsWith('.json')) continue;
+      try {
+        const j = JSON.parse(await fsp.readFile(path.join(dir, f), 'utf8'));
+        out.push({ name: f.slice(0, -5), queueCount: (j.queue || []).length, profile: j.profile || '', updatedAt: j.updatedAt || '' });
+      } catch { /* ignore */ }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+async function saveConfig(name) {
+  const dir = await configsDir();
+  if (!dir) throw new Error('配置目录不可用');
+  if (!String(name || '').trim()) throw new Error('配置名称不能为空');
+  if (/[/\\]/.test(name)) throw new Error('配置名称包含非法字符');
+  const q = await readQueue();
+  const conn = await readConnection();
+  const data = { queue: q, profile: conn.profile || '', updatedAt: new Date().toISOString() };
+  await fsp.mkdir(dir, { recursive: true });
+  await fsp.writeFile(path.join(dir, `${name}.json`), JSON.stringify(data, null, 2), 'utf8');
+  return data;
+}
+
+async function applyConfig(name) {
+  const dir = await configsDir();
+  if (!dir) throw new Error('配置目录不可用');
+  const file = path.join(dir, `${name}.json`);
+  const j = JSON.parse(await fsp.readFile(file, 'utf8'));
+  if (!Array.isArray(j.queue)) throw new Error('配置内容无效');
+  const f = await queueFile();
+  if (f) await fsp.writeFile(f, JSON.stringify(j.queue, null, 2), 'utf8');
+  if (j.profile) {
+    const conn = await readConnection();
+    await writeConnectionProfile({ ...conn, profile: j.profile });
+  }
+  return { queueCount: j.queue.length, profile: j.profile || '' };
+}
+
+async function deleteConfig(name) {
+  const dir = await configsDir();
+  if (!dir) return;
+  await fsp.rm(path.join(dir, `${name}.json`), { force: true });
+}
+
+/* ---------- 配置快照路由 ---------- */
+app.get('/api/configs', async (_req, res) => {
+  try { res.json({ items: await listConfigs() }); } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/configs', async (req, res) => {
+  try {
+    const { name } = req.body || {};
+    await saveConfig(name);
+    res.json({ ok: true, items: await listConfigs() });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/configs/:name/apply', async (req, res) => {
+  try {
+    const r = await applyConfig(req.params.name);
+    res.json({ ok: true, ...r });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.delete('/api/configs/:name', async (req, res) => {
+  try {
+    await deleteConfig(req.params.name);
+    res.json({ ok: true, items: await listConfigs() });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 async function readQueue() {
   const file = await queueFile();
   if (!file) return DEFAULT_QUEUE();
@@ -412,7 +502,7 @@ async function writeDailyTaskFile(queue) {
   return content;
 }
 
-async function runDailyQueue({ queue, profile, logLevel, addr, common = {}, name }) {
+async function runDailyQueue({ queue, profile, logLevel, addr, common = {}, name, postAction = '' }) {
   const q = Array.isArray(queue) ? queue : await readQueue();
   await writeDailyTaskFile(q);
   const args = ['run', 'daily'];
@@ -429,13 +519,64 @@ async function runDailyQueue({ queue, profile, logLevel, addr, common = {}, name
     env,
     queue: q.filter((t) => t.enabled && BY_TYPE[t.type]).map((t) => ({ type: t.type, name: t.name })),
   });
+  if (postAction) pendingPostActions[id] = postAction;
   return { id, enabledCount };
+}
+
+const POST_ACTIONS = {
+  close: { label: '关闭游戏' },
+  suspend: { label: '休眠（systemctl suspend）' },
+  shutdown: { label: '关机（systemctl poweroff）' },
+};
+const pendingPostActions = {}; // taskId -> action key
+
+function canRunSystemAction() {
+  try {
+    return require('fs').existsSync('/run/systemd/system');
+  } catch {
+    return false;
+  }
+}
+
+async function runPostAction(task, key) {
+  delete pendingPostActions[task.id];
+  const meta = POST_ACTIONS[key];
+  if (!meta) return;
+  const d = await configDirs();
+  const maaBin = path.join(d.share, 'maa', 'bin', 'maa');
+  runner.appendOutput(task, `\n[后置动作] ${meta.label}`);
+  if (key === 'close') {
+    const { execFile } = require('child_process');
+    await new Promise((resolve) => {
+      execFile(maaBin, ['closedown'], { timeout: 60000, env: process.env }, (err, stdout, stderr) => {
+        const out = String(stdout || '') + String(stderr || '');
+        if (out.trim()) runner.appendOutput(task, out.trim());
+        if (err) runner.appendOutput(task, `[后置动作] 关闭游戏失败：${err.message}`);
+        else runner.appendOutput(task, '[后置动作] 已执行关闭游戏');
+        resolve();
+      });
+    });
+    return;
+  }
+  if (key === 'suspend' || key === 'shutdown') {
+    if (!canRunSystemAction()) {
+      runner.appendOutput(task, '[后置动作] 容器/无 systemd 环境不可用，请改在宿主机执行');
+      return;
+    }
+    const { execFile } = require('child_process');
+    await new Promise((resolve) => {
+      execFile('systemctl', [key === 'suspend' ? 'suspend' : 'poweroff'], { timeout: 15000 }, (err) => {
+        if (err) runner.appendOutput(task, `[后置动作] 执行失败：${err.message}`);
+        resolve();
+      });
+    });
+  }
 }
 
 app.post('/api/queue/run', async (req, res) => {
   try {
-    const { queue, profile, logLevel, addr, common = {} } = req.body || {};
-    const r = await runDailyQueue({ queue, profile, logLevel, addr, common });
+    const { queue, profile, logLevel, addr, common = {}, postAction } = req.body || {};
+    const r = await runDailyQueue({ queue, profile, logLevel, addr, common, postAction });
     res.json({ ok: true, ...r });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -1066,8 +1207,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); copilot.init(d.data, d.config); });
   scheduler.init({
     getConfigDir: async () => (await configDirs()).config,
-    runDailyQueue: async ({ profile, name }) => {
-      const r = await runDailyQueue({ profile, name });
+    applyConfig,
+    runDailyQueue: async ({ profile, name, postAction }) => {
+      const r = await runDailyQueue({ profile, name, postAction });
       return r.id;
     },
   });
