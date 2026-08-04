@@ -408,35 +408,37 @@ function fieldInput(f, item) {
   const isRoguelike = item.type === 'Roguelike';
   const isCopilot = item.type === 'Copilot';
   if (isCopilot && f.name === 'filename') {
-    // 队列侧抄作业：作业文件下拉 + 作业代码导入
+    // 队列侧抄作业：与快速任务一致的作业列表（预览/勾选/导入落地）+ 本地文件下拉
     const row = elt('div', { class: 'toolbar', style: 'gap:8px;width:100%' });
     const picker = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择本地作业文件或手输路径' }, (v) => setParam(item, f, v), () => {
       const files = state.copilotFiles || [];
       return files.map((fp) => ({ value: fp, label: fp.replace(/^.*[/\\]/, '') }));
     });
     const codeInput = elt('input', { type: 'text', placeholder: '作业代码导入，如 12345 / maa://12345 / 作业集' });
-    const importBtn = elt('button', { class: 'btn sm', type: 'button', onclick: async () => {
+    row.append(picker, codeInput);
+    wrap.append(row);
+    if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
+    // 作业列表区（自动预览 + 勾选 + 导入落地）
+    const listBox = elt('div', { class: 'copilot-list', id: `copilot-qlist-${item.type}` });
+    const importBtn = elt('button', { class: 'btn sm', type: 'button', onclick: () => importCheckedCopilots(item, listBox) }, '导入勾选作业');
+    const listWrap = elt('div', { class: 'field full' }, [
+      elt('label', {}, '作业列表（输入代码后自动显示，勾选后点击导入）'),
+      listBox,
+      elt('div', { style: 'margin-top:6px' }, importBtn),
+    ]);
+    wrap.append(listWrap);
+    codeInput.addEventListener('change', async () => {
       const code = codeInput.value.trim();
       if (!code) return;
+      listBox.innerHTML = '<div class="copilot-loading">正在获取作业…</div>';
       try {
-        const r = await api('/api/copilot/download', { method: 'POST', body: JSON.stringify({ input: code }) });
-        if (r.items && r.items.length) {
-          const list = item.params.copilot_list || [];
-          for (const it of r.items) list.push({ filename: it.path, stage_name: it.stage, is_raid: false });
-          item.params.copilot_list = list;
-          setParam(item, f, picker.querySelector('input').value);
-          renderQueueSettings();
-          toast(`已导入 ${r.items.length} 个作业`, 'success');
-          loadCopilotFiles();
-        }
+        const res = await api('/api/copilot/preview', { method: 'POST', body: JSON.stringify({ input: code }) });
+        renderQueueCopilotList(listBox, res.items || []);
       } catch (err) {
-        toast(`导入失败：${err.message}`, 'error');
+        listBox.innerHTML = '';
+        listBox.append(elt('div', { class: 'copilot-err' }, `作业获取失败：${err.message}`));
       }
-    } }, '导入');
-    row.append(picker, codeInput, importBtn);
-    input = row;
-    wrap.append(input);
-    if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
+    });
     return wrap;
   }
   switch (f.type) {
@@ -1138,6 +1140,61 @@ async function loadRoguelikeData(theme) {
     state.roguelikeData = res;
   } catch {
     state.roguelikeData = { squads: [], groups: [], operators: [] };
+  }
+}
+
+/* 队列侧抄作业：作业列表渲染（与快速任务同款，勾选后导入落地） */
+function renderQueueCopilotList(box, items) {
+  box.innerHTML = '';
+  if (!items.length) { box.append(elt('div', { class: 'muted', style: 'padding:8px' }, '未解析到作业')); return; }
+  const list = elt('div', { class: 'copilot-list-inner' });
+  const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; });
+  const head = elt('div', { class: 'copilot-list-head' }, [
+    elt('span', { class: 'copilot-count' }, `共 ${items.length} 项`),
+    elt('div', { class: 'spacer' }),
+    elt('button', { class: 'btn xs', type: 'button', onclick: () => setAll(true) }, '全选'),
+    elt('button', { class: 'btn xs', type: 'button', onclick: () => setAll(false) }, '取消全选'),
+  ]);
+  for (const it of items) {
+    const row = elt('label', { class: 'copilot-item' }, [
+      elt('input', { type: 'checkbox', checked: true, 'data-uri': it.uri, 'data-stage': it.stage || '' }),
+      elt('span', { class: 'copilot-stage' }, it.stage || it.uri),
+      ...(it.author ? [elt('span', { class: 'copilot-meta' }, `作者 ${it.author}${it.views ? ` · ${it.views} 浏览` : ''}`)] : []),
+    ]);
+    list.append(row);
+  }
+  box.append(head, list);
+}
+
+async function importCheckedCopilots(item, box) {
+  const checked = [...box.querySelectorAll('input[type=checkbox]:checked')];
+  if (!checked.length) return toast('请先勾选要导入的作业', 'error');
+  const btn = box.parentElement.querySelector('button');
+  if (btn) btn.disabled = true;
+  try {
+    const rows = [];
+    for (const cb of checked) {
+      const uri = cb.dataset.uri;
+      if (!uri) continue;
+      const r = await api('/api/copilot/download', { method: 'POST', body: JSON.stringify({ input: uri }) });
+      if (r.items && r.items.length) {
+        for (const it of r.items) rows.push({ filename: it.path, stage_name: it.stage, is_raid: false });
+      }
+    }
+    if (rows.length) {
+      item.params = item.params || {};
+      item.params.copilot_list = (item.params.copilot_list || []).concat(rows);
+      autosaveQueue();
+      renderQueueSettings();
+      loadCopilotFiles();
+      toast(`已导入 ${rows.length} 个作业到「作业列表」`, 'success');
+    } else {
+      toast('没有可导入的作业', 'error');
+    }
+  } catch (err) {
+    toast(`导入失败：${err.message}`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
