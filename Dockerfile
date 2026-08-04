@@ -15,6 +15,7 @@ RUN npm install --omit=dev
 
 COPY server ./server
 COPY public ./public
+COPY README.md ./README.md
 COPY bin/maa ./bin/maa
 RUN chmod +x ./bin/maa
 
