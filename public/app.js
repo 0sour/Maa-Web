@@ -2358,6 +2358,7 @@ function renderDeviceStatus(st) {
     txt.innerHTML = '<span class="dev-name">未连接设备</span><span class="dev-sub">点击配置</span>';
   }
   renderDeviceCards(st);
+  renderDeviceInstance(st);
 }
 
 function renderDeviceCards(st) {
@@ -2379,6 +2380,60 @@ function renderDeviceCards(st) {
       elt('div', { class: `v ${cls}`, style: color ? `color:${color}` : '' }, v),
     ]));
   }
+}
+
+function openScrcpyWindow() {
+  api('/api/connection').then((conn) => {
+    const addr = conn && conn.address;
+    if (!addr) return toast('请先在「设备连接」页连接设备', 'error');
+    const base = `http://${location.hostname}:8000`;
+    const theme = localStorage.getItem('maa-web-theme') || 'dark';
+    window.open(`${base}/#!/?action=stream&udid=${encodeURIComponent(addr)}&theme=${encodeURIComponent(theme)}`, '_blank');
+  }).catch((err) => toast(err.message, 'error'));
+}
+
+function renderDeviceInstance(st) {
+  const card = $('#device-instance-card');
+  if (!card) return;
+  const connected = st.connected && st.device;
+  card.innerHTML = '';
+
+  const left = elt('div', { class: 'inst-left' }, [
+    elt('div', { class: 'inst-dot-row' }, [
+      elt('span', { class: `inst-dot${connected ? ' online' : ''}` }),
+      elt('b', {}, connected ? (st.device.model || st.device.serial) : (st.configured.address || '未连接设备')),
+    ]),
+    elt('div', { class: 'inst-meta' }, [
+      connected ? `序列号 ${st.device.serial}` : (st.adb ? (st.device ? `设备状态 ${st.device.state}` : '未配置设备') : '未找到 adb'),
+      `触控 ${st.configured.touch_mode || 'MaaTouch'}`,
+      st.adb ? `${st.adb.path} v${st.adb.version}` : '',
+    ].filter(Boolean).join(' · ')),
+  ]);
+
+  const shot = elt('div', { class: 'inst-shot' });
+  if (connected) {
+    const img = elt('img', { src: `/api/device/screen?t=${Date.now()}`, alt: '实时画面', loading: 'lazy' });
+    img.onerror = () => { shot.innerHTML = '<div class="empty">画面不可用</div>'; };
+    shot.append(img);
+  } else {
+    shot.append(elt('div', { class: 'empty' }, '连接设备后显示实时画面'));
+  }
+
+  const busy = state.status && state.status.busy;
+  const runnerName = state.currentRunner ? state.currentRunner.name : '';
+  const right = elt('div', { class: 'inst-right' }, [
+    elt('div', { class: 'inst-task' }, [
+      elt('b', {}, busy ? '任务运行中' : '空闲'),
+      elt('span', { class: 'muted' }, runnerName || (busy ? '队列任务执行中…' : '当前无运行任务')),
+    ]),
+    elt('div', { class: 'toolbar', style: 'flex-wrap:wrap' }, [
+      elt('button', { class: 'btn', onclick: openScrcpyWindow }, '远程控制'),
+      elt('button', { class: 'btn', onclick: () => toggleScreen() }, '全屏画面'),
+      elt('button', { class: 'btn', onclick: () => switchView('config') }, '连接配置'),
+    ]),
+  ]);
+
+  card.append(left, shot, right);
 }
 
 async function deviceScan() {
@@ -2526,19 +2581,7 @@ async function resAuto() {
 }
 
 function bindScrcpyEvents() {
-  $('#wsscrcpy-btn').addEventListener('click', async () => {
-    try {
-      const conn = await api('/api/connection');
-      const addr = conn && conn.address;
-      if (!addr) return toast('请先在「设备连接」页连接设备', 'error');
-      const base = `http://${location.hostname}:8000`;
-      const theme = localStorage.getItem('maa-web-theme') || 'dark';
-      const url = `${base}/#!/?action=stream&udid=${encodeURIComponent(addr)}&theme=${encodeURIComponent(theme)}`;
-      window.open(url, '_blank');
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  });
+  $('#wsscrcpy-btn').addEventListener('click', openScrcpyWindow);
 }
 
 /* ---------------- init ---------------- */

@@ -69,9 +69,9 @@
     2. `server/dailyTaskTypes.js`：CLIENTS 常量与 series/server/extra_tags_mode/facility/drones/formation_index/support_unit_usage/theme 字段 options → 标签对
     3. `public/app.js`：buildQuickInput select 分支 + fieldInput chips 分支支持 `[值, 标签]` 对（**回退需同时还原这两处渲染逻辑**）
   - 未覆盖：boolMap 类（凹开局期望等，hint 已有中文对照）留待后续
-- [ ] **K 设备状态页整合**：连接状态+截图+任务状态合一（实例卡片）
-- [ ] **L 快速任务扩展**：抽卡十连、小游戏刷取（对齐原版 Gacha/MiniGame）
-- [ ] **M ws-scrcpy 集成优化**：见专项
+- [x] **K 设备状态页整合**（2026-08-06 完成）：设备页新增「实例状态」卡片——连接状态（点/设备名/序列号/触控/adb）+ 实时截图缩略（5s 轮询刷新）+ 任务运行状态 + 操作（远程控制/全屏画面/连接配置），openScrcpyWindow 抽为公共函数
+- [x] **L 快速任务扩展**（2026-08-06 判定不可行）：maa-cli 0.7.5 tool 任务不支持 `Gacha`/`MiniGame` 类型（`unknown variant`），无法实现抽卡十连/小游戏刷取；等 maa-cli 后续版本支持后再评估
+- [x] **M ws-scrcpy 集成优化**（2026-08-06 完成）：见专项
 
 ### P1 ws-scrcpy 远程控制优化（专项）
 
@@ -79,9 +79,9 @@
   - [x] **① 风格统一**（完成）：亮/暗/跟随系统三态对齐 maa-web 色板，URL `?theme=` 驱动；按钮/morebox/设备卡片/分隔符样式对齐
   - [x] **② 画面自适应**（完成）：fitToScreen 强制自适应；画面/触摸层等比缩放不超视口
   - [x] **③ 体验衔接**（完成）：设备列表精简、流页面隐藏列表覆盖层、.video 容器透明化
-  - [ ] **④ 集成方式**：暂维持新标签页跳转；评估 maa-web 反代 `/wsscrcpy/` 同源 iframe 嵌入
-  - [ ] **⑤ 移动端细节**：工具栏移动端布局优化；断线重连/错误提示检查；界面汉化
-- 注意：ws-scrcpy 为本地第三方改动，不升级覆盖；部署见 `docs/WSCRCPY.md`
+  - [x] **④ 集成方式**（完成，保持现状）：维持新标签页跳转；iframe 嵌入需反代 8000 端口且与现有 `#!/` hash 路由冲突，收益低不采用
+  - [x] **⑤ 移动端细节**（完成）：流连接**断线自动重连**（3s 退避、用户主动停止不重连、重连失败持续重试）；断开/等待/就绪等状态文案汉化（`已断开连接，3 秒后自动重连…`/`连接中…`/`就绪`/`等待设备信息…`）；标题汉化（设备名 - 远程控制）；移动端工具栏布局优化（main.css 追加 media query：控件网格/按钮列/弹层适配 ≤768px）；界面主文案汉化（iOS 专有难度等保留英文，安卓主场景不涉及）
+- 注意：ws-scrcpy 源码改动（断线重连/汉化）需 `npm run dist:prod` 重新构建；构建会重置 `dist/public/main.css` 移动端 patch，需重新追加（见本文件附注）；部署见 `docs/WSCRCPY.md`
 
 ### P2
 

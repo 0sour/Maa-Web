@@ -154,6 +154,11 @@
         </div>
         <div class="cards" id="device-current-cards"></div>
         <div class="panel">
+          <h2>实例状态</h2>
+          <p class="sub" style="margin-bottom:10px">连接状态、实时画面与任务运行状态汇总</p>
+          <div id="device-instance-card" class="instance-card"></div>
+        </div>
+        <div class="panel">
           <h2>分辨率</h2>
           <p class="sub" style="margin-bottom:10px">MAA 仅支持 16:9 分辨率（720x1280 / 1080x1920 / 1440x2560）。当前 <code id="res-current">-</code>，若不是支持分辨率，任务会报 <code>UnsupportedResolution</code>。</p>
           <div id="res-warning" class="adb-state warn" style="display:none"></div>
@@ -530,6 +535,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="app.js?v=20260806g"></script>
+  <script src="app.js?v=20260806h"></script>
 </body>
 </html>

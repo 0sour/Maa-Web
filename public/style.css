@@ -346,6 +346,30 @@ textarea.editor {
 /* ---------- conn grid ---------- */
 .conn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 
+/* ---------- instance card ---------- */
+.instance-card {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  padding: 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg2);
+}
+.inst-left { flex: 1 1 200px; display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
+.inst-dot-row { display: flex; align-items: center; gap: 8px; }
+.inst-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--err); flex: none;
+}
+.inst-dot.online { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.inst-meta { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.inst-shot {
+  flex: 1 1 260px; min-width: 220px; max-width: 380px;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: #000; display: flex; align-items: center; justify-content: center;
+}
+.inst-shot img { width: 100%; display: block; }
+.inst-shot .empty { color: var(--muted); font-size: 12px; padding: 30px 0; }
+.inst-right { flex: 1 1 220px; display: flex; flex-direction: column; gap: 10px; min-width: 220px; }
+.inst-task { display: flex; flex-direction: column; gap: 4px; }
+
 /* ---------- file list ---------- */
 .config-list { display: flex; flex-direction: column; gap: 6px; }
 .config-row {
