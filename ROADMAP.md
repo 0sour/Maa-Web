@@ -44,8 +44,8 @@
   - 现状：抄作业只能输入作业代码（maa:///prts://）或填写服务器上的文件路径，手机端无法直接上传本地作业文件
   - 实施：`POST /api/copilot/upload`（multipart 或 base64 JSON 上传 → 校验作业 JSON（stage_name/actions）→ 保存 `config/copilot/upload-<时间戳>.json` → 返回路径 + 解析信息）；前端三个抄作业入口加「上传作业文件」按钮（文件选择 → 上传 → 自动填入/加入列表）；队列 Copilot 上传后加入作业列表（勾选即生效）
   - 成本：低；价值：中（手机端导入本地作业的刚需路径）
-- [x] **R 修复定时任务不可用**（2026-08-06 完成）：根因=**容器时区 UTC 与用户本地差 8 小时**，定时任务按 UTC 触发导致时间错位；修复=compose 加 `TZ=Asia/Shanghai`（node 自带 ICU 时区数据，无需 tzdata）。API/落盘/tick 逻辑验证正常
-- [x] **S 修复公招识别不可用**（2026-08-06 完成）：实测链路验证正常（任务执行、asst.log callback 格式、`maa dir log`=/state/maa/debug、分辨率 1080x1920 支持）；「不可用」体验根因=未进入词条页时失败且无原因提示；增强=无识别结果时自动读取日志中最近的 `SubTaskError`（taskchain=Recruit）并提示具体识别不到的任务（如 `RecruitBegin 识别不到页面`）
+- [ ] **R 修复定时任务不可用**（2026-08-06 已修复待验证）：根因=**容器时区 UTC 与用户本地差 8 小时**，定时任务按 UTC 触发导致时间错位；修复=compose 加 `TZ=Asia/Shanghai`（node 自带 ICU 时区数据，无需 tzdata）。API/落盘/tick 逻辑验证正常。**待用户实测确认后再标记完成**
+- [ ] **S 修复公招识别不可用**（2026-08-06 已修复待验证）：实测链路验证正常（任务执行、asst.log callback 格式、`maa dir log`=/state/maa/debug、分辨率 1080x1920 支持）；「不可用」体验根因=未进入词条页时失败且无原因提示；增强=无识别结果时自动读取日志中最近的 `SubTaskError`（taskchain=Recruit）并提示具体识别不到的任务（如 `RecruitBegin 识别不到页面`）。**待用户实测确认后再标记完成**
 - [ ] **P 外部通知**（搁置，需额外 docker 部署，后续评估）：任务完成/失败推送（Bark/ServerChan/Telegram/Discord/Webhook）
 
 ### P1 UI/UX
