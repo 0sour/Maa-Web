@@ -62,6 +62,21 @@ const THEME_DIR = {
   JieGarden: 'JieGarden',
 };
 
+/* 各主题最高难度（参考官方 GetMaxDifficultyForTheme） */
+const MAX_DIFF = { Phantom: 15, Mizuki: 18, Sami: 15, Sarkaz: 18, JieGarden: 18 };
+
+/* 难度选项：-1 不切换 / MAX / MIN / 1..max 降序 */
+function difficulties(theme) {
+  const max = MAX_DIFF[theme] || 20;
+  const list = [
+    { value: '-1', label: '不切换 (-1)' },
+    { value: String(max), label: `MAX (${max})` },
+    { value: '0', label: 'MIN (0)' },
+  ];
+  for (let i = max; i >= 1; i--) list.push({ value: String(i), label: String(i) });
+  return list;
+}
+
 let dataDir = '';
 let opCache = {}; // theme -> { mtime, groups, operators }
 
@@ -105,7 +120,7 @@ async function getOperators(theme) {
 async function list(theme) {
   const squads = (SQUADS[theme] || []).map(([value, label]) => ({ value, label }));
   const { groups, operators } = await getOperators(theme);
-  return { theme, squads, groups, operators };
+  return { theme, squads, difficulties: difficulties(theme), groups, operators };
 }
 
 module.exports = { init, list };

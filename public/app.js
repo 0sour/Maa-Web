@@ -773,6 +773,12 @@ function buildQuickInput(f) {
       return (d.operators || []).map((o) => ({ value: o, label: o }));
     });
   }
+  if (f.name === 'difficulty' && state.currentType === 'roguelike') {
+    return buildPicker('', { 'data-name': f.name, placeholder: '选择难度' }, null, () => {
+      const d = state.roguelikeData || {};
+      return (d.difficulties || []).map((x) => ({ value: x.value, label: x.label }));
+    });
+  }
   if (f.type === 'select' || f.type === 'customTasks') {
     const sel = elt('select', { 'data-name': f.name });
     for (const opt of f.options || []) {
