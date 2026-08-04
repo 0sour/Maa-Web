@@ -83,10 +83,16 @@ async function getOperators(theme) {
     for (const item of Array.isArray(j.priority) ? j.priority : []) {
       if (!item || typeof item !== 'object') continue;
       const name = item.name;
-      const members = Array.isArray(item.opers) ? item.opers.map((o) => (typeof o === 'object' && o ? (o.name || '') : String(o))).filter(Boolean) : [];
-      if (name) groups.push({ name, members });
-      if (name && !seen.has(name)) seen.add(name);
-      for (const m of members) seen.add(m);
+      const members = [];
+      for (const o of Array.isArray(item.opers) ? item.opers : []) {
+        if (!o || typeof o !== 'object') continue;
+        // 参考官方 UpdateRoguelikeCoreCharList：仅 is_start=true 的开局核心干员
+        if (o.is_start !== true) continue;
+        const oname = typeof o.name === 'string' ? o.name : '';
+        if (oname) members.push(oname);
+        if (oname && !seen.has(oname)) seen.add(oname);
+      }
+      if (name && members.length) groups.push({ name, members });
     }
     const result = { mtime: st.mtimeMs, groups, operators: [...seen] };
     opCache[theme] = result;
