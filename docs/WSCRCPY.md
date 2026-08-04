@@ -44,9 +44,12 @@ paseo 终端（当前终端 id：c689cbcc）：
 | 主题跟随 maa-web | `src/style/app.css`、`src/style/devicelist.css`、`src/app/index.ts` | 亮/暗/跟随系统三态与 maa-web 对齐：亮=#f3f5f9/#ffffff/#d8dee9/#232a36，暗=#12151b/#1f2530/#2b3342/#e6eaf2；URL `?theme=`（query 或 hash）强制指定，未指定跟随系统；列表页与流页均生效 |
 | 控件风格对齐 | `src/style/app.css`、`morebox.css`、`devicelist.css` | 控制按钮列圆角卡片+阴影、按钮 hover 高亮；morebox 圆角边框+毛玻璃+输入控件圆角；设备列表改圆角卡片（12px）+ 边框 + hover 高亮 + 虚线分隔条；按钮/下拉圆角 |
 | fitToScreen 强制自适应 | `src/app/player/BasePlayer.ts` | `getFitToScreenFromStorage` 始终返回 true（忽略 localStorage 历史值），画面始终按窗口自适应 |
-| 精简设备列表 | `build.config.override.json` | `INCLUDE_DEV_TOOLS/FILE_LISTING/ADB_SHELL: false`，仅保留流入口 |
+| 断线自动重连（2026-08-06） | `src/app/googDevice/client/StreamClientScrcpy.ts` | 流连接断开 3 秒后自动重建（新 StreamReceiver + 新 deviceView）；用户主动停止（stop 按钮）不重连；重连失败持续重试 |
+| 状态文案汉化 | `src/app/googDevice/client/{ConfigureScrcpy,StreamClientScrcpy}.ts`、`src/app/client/BaseDeviceTracker.ts` | `已断开连接，3 秒后自动重连…`/`连接中…`/`就绪`/`等待设备信息…`/`设备列表`；标题 `设备名 - 远程控制` |
+| 移动端布局 | `dist/public/main.css`（追加 media query ≤768px） | 控件网格紧凑、按钮列缩小、morebox 弹层限高滚动 |
 
 每次改动后需重建：`npx webpack --config webpack/ws-scrcpy.prod.ts` 并重启服务。
+⚠️ 重建会**重置** `dist/public/main.css`，须重新追加「移动端布局」patch（内容见上文表格，或从 git 历史恢复）；源码改动（表格其余行）构建后自动保留。
 
 ## maa-web 集成
 
