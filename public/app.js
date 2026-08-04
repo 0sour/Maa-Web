@@ -729,7 +729,12 @@ function renderQuickForm() {
   for (const f of basic) {
     const wrap = elt('div', { class: 'field' });
     wrap.append(elt('label', {}, f.label));
-    wrap.append(buildQuickInput(f));
+    const input = buildQuickInput(f);
+    if (state.currentType === 'roguelike' && f.name === 'theme' && input) {
+      const select = input.tagName === 'SELECT' ? input : (input.querySelector ? input.querySelector('select') : null);
+      if (select) select.addEventListener('change', () => loadRoguelikeData(select.value));
+    }
+    wrap.append(input);
     if (f.description) wrap.append(elt('div', { class: 'desc' }, f.description));
     form.append(wrap);
   }
@@ -760,6 +765,13 @@ function buildQuickInput(f) {
   }
   if (f.name === 'stage') {
     return buildStagePicker('', { 'data-name': f.name });
+  }
+  if (f.name === 'squad' || f.name === 'coreChar') {
+    return buildPicker('', { 'data-name': f.name, placeholder: f.name === 'squad' ? '选择分队' : '选择核心干员' }, null, () => {
+      const d = state.roguelikeData || {};
+      if (f.name === 'squad') return (d.squads || []).map((s) => ({ value: s.value, label: s.label }));
+      return (d.operators || []).map((o) => ({ value: o, label: o }));
+    });
   }
   if (f.type === 'select' || f.type === 'customTasks') {
     const sel = elt('select', { 'data-name': f.name });
@@ -852,12 +864,12 @@ async function loadStageOptions() {
   } catch { state.stageOptions = []; }
 }
 
-/* 自定义关卡搜索下拉组件 */
-function buildStagePicker(value, attrs = {}, onChange) {
+/* 通用搜索下拉组件（options: [{value, label, sub}]） */
+function buildPicker(value, attrs, onChange, options) {
   const wrap = elt('div', { class: 'stage-picker' });
   const input = elt('input', {
     type: 'text',
-    placeholder: '输入或选择关卡，如 1-7',
+    placeholder: '输入或选择…',
     value: value || '',
     ...attrs,
   });
@@ -865,24 +877,24 @@ function buildStagePicker(value, attrs = {}, onChange) {
   wrap.append(input, list);
   input.addEventListener('change', () => { if (onChange) onChange(input.value); });
 
+  const opts = () => (typeof options === 'function' ? options() : (options || []));
   const openList = () => {
     const q = input.value.trim().toUpperCase();
-    const src = state.stageOptions || [];
-    const matched = (q ? src.filter((s) => s.code.startsWith(q) || s.code.includes(q)) : src).slice(0, 30);
+    const src = opts();
+    const matched = (q ? src.filter((s) => s.value.toUpperCase().startsWith(q) || s.value.toUpperCase().includes(q) || (s.label || '').includes(q)) : src).slice(0, 30);
     list.innerHTML = '';
     for (const s of matched) {
       const opt = elt('button', {
         type: 'button',
         class: 'stage-opt',
         onclick: () => {
-          input.value = s.code;
+          input.value = s.value;
           input.dispatchEvent(new Event('change', { bubbles: true }));
           list.hidden = true;
         },
       }, [
-        elt('span', { class: 'stage-opt-code' }, s.code),
-        s.apCost ? elt('span', { class: 'stage-opt-ap' }, `${s.apCost}理智`) : null,
-        s.drops && s.drops.length ? elt('span', { class: 'stage-opt-drops' }, s.drops.map((d) => d.name).slice(0, 2).join('、')) : null,
+        elt('span', { class: 'stage-opt-code' }, s.label || s.value),
+        s.sub ? elt('span', { class: 'stage-opt-drops' }, s.sub) : null,
       ]);
       list.append(opt);
     }
@@ -892,6 +904,15 @@ function buildStagePicker(value, attrs = {}, onChange) {
   input.addEventListener('input', openList);
   input.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 150));
   return wrap;
+}
+
+/* 关卡搜索下拉（数据来自 MaaCore 资源 stages.json，随更新自动生效） */
+function buildStagePicker(value, attrs = {}, onChange) {
+  return buildPicker(value, attrs, onChange, () => (state.stageOptions || []).map((s) => ({
+    value: s.code,
+    label: s.code,
+    sub: `${s.drops && s.drops.length ? s.drops.map((d) => d.name).slice(0, 2).join('、') : ''}${s.apCost ? ` · ${s.apCost}理智` : ''}`,
+  })));
 }
 
 /* ---------------- about / readme ---------------- */
@@ -992,6 +1013,16 @@ async function loadAbout() {
     box.append(renderMarkdown(md));
   } catch {
     box.textContent = 'README.md 加载失败';
+  }
+}
+
+/* 肉鸽数据（分队/干员，随主题变化） */
+async function loadRoguelikeData(theme) {
+  try {
+    const res = await api(`/api/roguelike?theme=${encodeURIComponent(theme || 'Sarkaz')}`);
+    state.roguelikeData = res;
+  } catch {
+    state.roguelikeData = { squads: [], groups: [], operators: [] };
   }
 }
 
@@ -2441,6 +2472,7 @@ async function init() {
   bindTools();
   try { if (localStorage.getItem('maa-web-side-log') === '1') toggleSideLog(true); } catch { /* ignore */ }
   loadStageOptions();
+  loadRoguelikeData('Sarkaz');
   startPolling();
   try {
     await Promise.all([loadQueueTypes(), loadQuickSchemas(), loadStatus()]);

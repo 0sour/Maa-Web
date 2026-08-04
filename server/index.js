@@ -14,6 +14,7 @@ const scheduler = require('./schedules');
 const auth = require('./auth');
 const update = require('./update');
 const stages = require('./stages');
+const roguelike = require('./roguelike');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -1061,7 +1062,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     if (auth.enabled()) console.log('[maa-web] 访问令牌已启用');
   });
   loadUpdateProxy();
-  configDirs().then((d) => stages.init(d.data));
+  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); });
   scheduler.init({
     getConfigDir: async () => (await configDirs()).config,
     runDailyQueue: async ({ profile, name }) => {
@@ -1069,6 +1070,15 @@ const server = app.listen(PORT, '0.0.0.0', () => {
       return r.id;
     },
   });
+});
+
+/* ---------- roguelike data ---------- */
+app.get('/api/roguelike', async (req, res) => {
+  try {
+    res.json(await roguelike.list(String(req.query.theme || 'Sarkaz')));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 /* ---------- today stages ---------- */
