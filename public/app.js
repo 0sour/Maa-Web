@@ -2450,6 +2450,7 @@ async function init() {
   }
   loadDeviceOptions();
   loadDeviceStatus();
+  loadTodayStages();
   setInterval(loadDeviceStatus, 5000);
   setInterval(() => { if ($('#view-queue').classList.contains('active')) loadTodayStages(); }, 600000);
 }
