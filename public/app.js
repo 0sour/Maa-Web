@@ -796,6 +796,22 @@ function renderQuickForm() {
       inner.append(wrap);
     }
   }
+  if (state.currentType === 'copilot') {
+    // 作业列表区：URI 变化后自动预览展示全部作业
+    const urisEl = form.querySelector('[data-name="uris"]');
+    const listBox = elt('div', { id: 'quick-copilot-list', class: 'copilot-list' });
+    const listWrap = elt('div', { class: 'field full' }, [
+      elt('label', {}, '作业列表（导入后自动显示，勾选要执行的作业）'),
+      listBox,
+    ]);
+    form.append(listWrap);
+    if (urisEl) {
+      const doPreview = () => loadCopilotPreview(urisEl.value);
+      urisEl.addEventListener('change', doPreview);
+      urisEl.addEventListener('blur', doPreview);
+      if (urisEl.value.trim()) doPreview();
+    }
+  }
 }
 
 function buildQuickInput(f) {
@@ -849,6 +865,11 @@ async function runQuick() {
     if (el.type === 'checkbox') { if (el.checked) params[el.dataset.name] = true; }
     else if (el.dataset.raw !== undefined) params[el.dataset.name] = el.dataset.raw;
     else if (el.value !== '') params[el.dataset.name] = el.value;
+  }
+  // 抄作业：勾选的作业列表优先于手填 URI
+  if (state.currentType === 'copilot' && $('#quick-copilot-list')) {
+    const checked = [...$$('#quick-copilot-list input[type=checkbox]:checked')].map((c) => c.dataset.uri);
+    if (checked.length) params.uris = checked.join('\n');
   }
   const common = {};
   for (const id of ['batch', 'dryRun', 'noSummary', 'noAutoReconnect']) {
@@ -1082,6 +1103,51 @@ async function loadRoguelikeData(theme) {
   } catch {
     state.roguelikeData = { squads: [], groups: [], operators: [] };
   }
+}
+
+/* 抄作业：解析作业并展示列表（作业集自动展开） */
+async function loadCopilotPreview(value) {
+  const box = $('#quick-copilot-list');
+  if (!box) return;
+  const first = String(value || '').trim().split(/\n/)[0];
+  if (!first) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="copilot-loading">正在获取作业…</div>';
+  try {
+    const res = await api('/api/copilot/preview', { method: 'POST', body: JSON.stringify({ input: first }) });
+    renderCopilotList(box, res);
+  } catch (err) {
+    box.innerHTML = '';
+    const errDiv = elt('div', { class: 'copilot-err' }, `作业获取失败：${err.message}`);
+    box.append(errDiv);
+  }
+}
+
+function renderCopilotList(box, data) {
+  const items = data.items || [];
+  box.innerHTML = '';
+  if (!items.length) {
+    box.append(elt('div', { class: 'muted', style: 'padding:8px' }, '未解析到作业'));
+    return;
+  }
+  const list = elt('div', { class: 'copilot-list-inner' });
+  const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; });
+  const head = elt('div', { class: 'copilot-list-head' }, [
+    elt('span', { class: 'copilot-count' }, `共 ${items.length} 项${data.name ? `（${data.name}）` : ''}`),
+    elt('div', { class: 'spacer' }),
+    elt('button', { class: 'btn xs', type: 'button', onclick: () => setAll(true) }, '全选'),
+    elt('button', { class: 'btn xs', type: 'button', onclick: () => setAll(false) }, '取消全选'),
+  ]);
+  for (const it of items) {
+    const row = elt('label', { class: 'copilot-item' }, [
+      elt('input', { type: 'checkbox', checked: true, 'data-uri': it.uri }),
+      elt('span', { class: 'copilot-stage' }, it.stage || it.uri),
+      ...(it.author ? [elt('span', { class: 'copilot-meta' }, `作者 ${it.author}${it.views ? ` · ${it.views} 浏览` : ''}`)] : []),
+      ...(it.description ? [elt('span', { class: 'copilot-desc', title: it.description }, String(it.description).slice(0, 60))] : []),
+      ...(it.difficulty && it.difficulty !== '0' ? [elt('span', { class: 'copilot-meta' }, `难度 ${it.difficulty}`)] : []),
+    ]);
+    list.append(row);
+  }
+  box.append(head, list);
 }
 
 /* ---------------- today stages ---------------- */

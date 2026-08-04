@@ -15,6 +15,7 @@ const auth = require('./auth');
 const update = require('./update');
 const stages = require('./stages');
 const roguelike = require('./roguelike');
+const copilot = require('./copilot');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -1070,6 +1071,17 @@ const server = app.listen(PORT, '0.0.0.0', () => {
       return r.id;
     },
   });
+});
+
+/* ---------- copilot preview ---------- */
+app.post('/api/copilot/preview', async (req, res) => {
+  try {
+    const { input } = req.body || {};
+    if (!input || !String(input).trim()) return res.status(400).json({ error: '请输入作业 URI 或路径' });
+    res.json(await copilot.preview(String(input).trim()));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 /* ---------- roguelike data ---------- */
