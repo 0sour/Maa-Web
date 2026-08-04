@@ -1063,7 +1063,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     if (auth.enabled()) console.log('[maa-web] 访问令牌已启用');
   });
   loadUpdateProxy();
-  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); copilot.init(d.data); });
+  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); copilot.init(d.data, d.config); });
   scheduler.init({
     getConfigDir: async () => (await configDirs()).config,
     runDailyQueue: async ({ profile, name }) => {
@@ -1079,6 +1079,24 @@ app.post('/api/copilot/preview', async (req, res) => {
     const { input } = req.body || {};
     if (!input || !String(input).trim()) return res.status(400).json({ error: '请输入作业 URI 或路径' });
     res.json(await copilot.preview(String(input).trim()));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/copilot/files', async (_req, res) => {
+  try {
+    res.json({ files: await copilot.listFiles() });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/copilot/download', async (req, res) => {
+  try {
+    const { input } = req.body || {};
+    if (!input || !String(input).trim()) return res.status(400).json({ error: '请输入作业代码或路径' });
+    res.json(await copilot.download(String(input).trim()));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

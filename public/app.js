@@ -406,6 +406,39 @@ function fieldInput(f, item) {
   const cur = (item.params || {})[f.name];
   let input;
   const isRoguelike = item.type === 'Roguelike';
+  const isCopilot = item.type === 'Copilot';
+  if (isCopilot && f.name === 'filename') {
+    // 队列侧抄作业：作业文件下拉 + 作业代码导入
+    const row = elt('div', { class: 'toolbar', style: 'gap:8px;width:100%' });
+    const picker = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择本地作业文件或手输路径' }, (v) => setParam(item, f, v), () => {
+      const files = state.copilotFiles || [];
+      return files.map((fp) => ({ value: fp, label: fp.replace(/^.*[/\\]/, '') }));
+    });
+    const codeInput = elt('input', { type: 'text', placeholder: '作业代码导入，如 12345 / maa://12345 / 作业集' });
+    const importBtn = elt('button', { class: 'btn sm', type: 'button', onclick: async () => {
+      const code = codeInput.value.trim();
+      if (!code) return;
+      try {
+        const r = await api('/api/copilot/download', { method: 'POST', body: JSON.stringify({ input: code }) });
+        if (r.items && r.items.length) {
+          const list = item.params.copilot_list || [];
+          for (const it of r.items) list.push({ filename: it.path, stage_name: it.stage, is_raid: false });
+          item.params.copilot_list = list;
+          setParam(item, f, picker.querySelector('input').value);
+          renderQueueSettings();
+          toast(`已导入 ${r.items.length} 个作业`, 'success');
+          loadCopilotFiles();
+        }
+      } catch (err) {
+        toast(`导入失败：${err.message}`, 'error');
+      }
+    } }, '导入');
+    row.append(picker, codeInput, importBtn);
+    input = row;
+    wrap.append(input);
+    if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
+    return wrap;
+  }
   switch (f.type) {
     case 'select': {
       input = elt('select');
@@ -1105,6 +1138,16 @@ async function loadRoguelikeData(theme) {
     state.roguelikeData = res;
   } catch {
     state.roguelikeData = { squads: [], groups: [], operators: [] };
+  }
+}
+
+/* 队列侧抄作业：本地作业文件列表 */
+async function loadCopilotFiles() {
+  try {
+    const res = await api('/api/copilot/files');
+    state.copilotFiles = res.files || [];
+  } catch {
+    state.copilotFiles = [];
   }
 }
 
@@ -2625,6 +2668,7 @@ async function init() {
   try { if (localStorage.getItem('maa-web-side-log') === '1') toggleSideLog(true); } catch { /* ignore */ }
   loadStageOptions();
   loadRoguelikeData('Sarkaz');
+  loadCopilotFiles();
   startPolling();
   try {
     await Promise.all([loadQueueTypes(), loadQuickSchemas(), loadStatus()]);
