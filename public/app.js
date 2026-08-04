@@ -751,7 +751,8 @@ function renderQuickForm() {
       const input = form.querySelector('[data-name="uris"]');
       if (!input) return toast('未找到作业 URI 输入框', 'error');
       input.value = uri;
-      toast(`已填入作业代码：${uri}，点击「运行」执行`, 'success');
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      toast(`已填入作业代码：${uri}，正在获取作业…`, 'success');
     } }, '填入作业');
     form.append(elt('div', { class: 'field full' }, [
       elt('label', {}, '作业代码导入（可选，作业站代码直达）'),
