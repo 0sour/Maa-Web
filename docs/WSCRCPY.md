@@ -7,13 +7,13 @@ ws-scrcpy（https://github.com/NetrisTV/ws-scrcpy）— Web 版 scrcpy 远程控
 - 源码/构建目录：`/tmp/opencode/ws-scrcpy`
 - 运行目录：`/tmp/opencode/ws-scrcpy/dist`
 - 服务端口：**8000**（HTTP）
-- 依赖 adb：`/vol1/1000/maa-web/bin/platform-tools/`（启动时加入 PATH）
+- 依赖 adb：`<项目目录>/bin/platform-tools/`（启动时加入 PATH）
 
 ## 安装（首次）
 
 ```bash
 cd /tmp/opencode
-git clone https://github.com/NetrisTV/ws-scrcpy.git   # 国内网络可用代理：-c http.proxy=http://192.168.10.110:7890
+git clone https://github.com/NetrisTV/ws-scrcpy.git   # 国内网络可用代理：git -c http.proxy=http://<代理IP:端口> clone
 cd ws-scrcpy
 npm install --no-audit --no-fund
 # 构建生产包
@@ -30,7 +30,7 @@ npx webpack --config webpack/ws-scrcpy.prod.ts        # 约 19 秒
 paseo 终端（当前终端 id：c689cbcc）：
 
 ```bash
-PATH=/vol1/1000/maa-web/bin/platform-tools:$PATH node ./index.js
+<项目目录>/bin/platform-tools:$PATH node ./index.js
 ```
 
 - 停止：`Ctrl+C`

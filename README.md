@@ -56,7 +56,7 @@ PORT=3100 node server/index.js
 cd /tmp/opencode/ws-scrcpy
 npm install
 npx webpack --config webpack/ws-scrcpy.prod.ts
-PATH=/vol1/1000/maa-web/bin/platform-tools:$PATH node ./index.js
+<项目目录>/bin/platform-tools:$PATH node ./index.js
 ```
 
 页面侧边栏「远程控制」按钮会自动携带当前设备与主题跳转。

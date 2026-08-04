@@ -5,6 +5,7 @@ RUN apt-get update \
         adb \
         curl \
         ca-certificates \
+        libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -85,13 +85,13 @@
 
 ## 参考项目
 
-- `/tmp/opencode/MAA`：MaaAssistantArknights 原版客户端源码（差距分析依据）
-- `/tmp/opencode/MXU`、`/tmp/opencode/maa-cli-webui`：UI/交互参考
-- `/tmp/opencode/ws-scrcpy`：远程控制（独立服务 8000 端口，maa-web 集成跳转）
+- MaaAssistantArknights 原版客户端源码（差距分析依据）
+- MXU 与 maa-cli-webui：UI/交互参考
+- ws-scrcpy：远程控制（独立服务 8000 端口，maa-web 集成跳转）
 
 ## 测试与部署
 
-- 回归：`cd /tmp/opencode && for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu ui-scrcpy ui-token ui-quick ui-autosave; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1`
+- 回归（开发环境）：`for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu ui-scrcpy ui-token ui-quick ui-autosave; do timeout 90 node $t-test.js 2>ui-token ui-quick ui-autosave; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1`1 | tail -1; done; timeout 90 node server-api-test.js 2>ui-token ui-quick ui-autosave; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1`1 | tail -1`
 - 前端改动后更新 `public/index.html` 资源版本号并重启：`PORT=3100 node server/index.js`（paseo 终端 2b6b9f2f）
 - HTML 改动后跑标签完整性校验（Python 严格解析器）
-- ws-scrcpy 服务：`/tmp/opencode/ws-scrcpy/dist`，`PATH=/vol1/1000/maa-web/bin/platform-tools:$PATH node ./index.js`（paseo 终端 5308bcf0）
+- ws-scrcpy 服务：`<ws-scrcpy 目录>/dist`，`PATH=<项目目录>/bin/platform-tools:$PATH node ./index.js`

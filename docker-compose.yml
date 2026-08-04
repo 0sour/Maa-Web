@@ -1,6 +1,13 @@
 services:
   maa-web:
-    build: .
+    build:
+      context: .
+      network: host
+      # 大陆网络构建加速：构建前设置环境变量，如
+      #   export BUILD_HTTP_PROXY=http://127.0.0.1:7890 BUILD_HTTPS_PROXY=http://127.0.0.1:7890
+      args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
     container_name: maa-web
     restart: unless-stopped
     init: true
@@ -8,19 +15,15 @@ services:
       - "3100:3100"
     environment:
       - PORT=3100
-      - MAA_CONFIG_DIR=/config
+      - MAA_CONFIG_DIR=/config/maa
+      - XDG_CONFIG_HOME=/config
       - XDG_DATA_HOME=/data
       - XDG_STATE_HOME=/state
       # - MAA_LOG=Debug            # 可在此调整默认日志级别
     volumes:
-      - maa-config:/config         # maa-cli / MaaCore 配置文件
-      - maa-data:/data             # MaaCore 及资源
-      - maa-state:/state           # 状态与日志
+      - ${HOME}/.config:/config           # 宿主 ~/.config（maa-cli 配置在 /config/maa）
+      - ${HOME}/.local/share:/data        # 宿主 ~/.local/share（MaaCore 资源在 /data/maa）
+      - ${HOME}/.local/state:/state       # 宿主 ~/.local/state（日志在 /state/maa）
     # 如需连接宿主上的模拟器/设备，可将宿主 adb 目录挂入并开放网络:
     # - /path/to/emulator:/emulator
     # network_mode: host
-
-volumes:
-  maa-config:
-  maa-data:
-  maa-state:
