@@ -401,6 +401,10 @@ function fieldsGroup(title, fields, item, advanced = false) {
 }
 
 function fieldInput(f, item) {
+  // 队列抄作业：原始 rows 表单字段隐藏，统一用直观的作业列表区（值由导入功能维护）
+  if (item.type === 'Copilot' && f.name === 'copilot_list') {
+    return elt('div', { style: 'display:none' });
+  }
   const wrap = elt('div', { class: `field ${f.type === 'chips' || f.type === 'drops' ? 'full' : ''}` });
   wrap.append(elt('label', {}, f.label));
   const cur = (item.params || {})[f.name];
