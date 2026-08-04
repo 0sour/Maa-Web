@@ -732,7 +732,14 @@ function renderQuickForm() {
     const input = buildQuickInput(f);
     if (state.currentType === 'roguelike' && f.name === 'theme' && input) {
       const select = input.tagName === 'SELECT' ? input : (input.querySelector ? input.querySelector('select') : null);
-      if (select) select.addEventListener('change', () => loadRoguelikeData(select.value));
+      if (select) select.addEventListener('change', () => {
+        loadRoguelikeData(select.value);
+        // 不同主题的模式/分队/难度/核心干员各不相同，切换主题清空已选值
+        for (const n of ['mode', 'squad', 'coreChar', 'difficulty']) {
+          const el = form.querySelector(`[data-name="${n}"]`);
+          if (el) { el.value = ''; delete el.dataset.raw; }
+        }
+      });
     }
     wrap.append(input);
     if (f.description) wrap.append(elt('div', { class: 'desc' }, f.description));
@@ -804,6 +811,7 @@ async function runQuick() {
   const params = {};
   for (const el of $$('[data-name]', $('#quick-form'))) {
     if (el.type === 'checkbox') { if (el.checked) params[el.dataset.name] = true; }
+    else if (el.dataset.raw !== undefined) params[el.dataset.name] = el.dataset.raw;
     else if (el.value !== '') params[el.dataset.name] = el.value;
   }
   const common = {};
@@ -876,7 +884,7 @@ async function loadStageOptions() {
   } catch { state.stageOptions = []; }
 }
 
-/* 通用搜索下拉组件（options: [{value, label, sub}]） */
+/* 通用搜索下拉组件（options: [{value, label, sub}]；选中显示 label、值存 data-raw） */
 function buildPicker(value, attrs, onChange, options) {
   const wrap = elt('div', { class: 'stage-picker' });
   const input = elt('input', {
@@ -887,10 +895,11 @@ function buildPicker(value, attrs, onChange, options) {
   });
   const list = elt('div', { class: 'stage-picker-list', hidden: true });
   wrap.append(input, list);
-  input.addEventListener('change', () => { if (onChange) onChange(input.value); });
+  input.addEventListener('change', () => { if (onChange) onChange(input.dataset.raw !== undefined ? input.dataset.raw : input.value); });
+  input.addEventListener('input', () => { delete input.dataset.raw; openList(); });
 
   const opts = () => (typeof options === 'function' ? options() : (options || []));
-  const openList = () => {
+  function openList() {
     const q = input.value.trim().toUpperCase();
     const src = opts();
     const matched = (q ? src.filter((s) => s.value.toUpperCase().startsWith(q) || s.value.toUpperCase().includes(q) || (s.label || '').includes(q)) : src).slice(0, 30);
@@ -900,7 +909,9 @@ function buildPicker(value, attrs, onChange, options) {
         type: 'button',
         class: 'stage-opt',
         onclick: () => {
-          input.value = s.value;
+          input.value = s.label || s.value;
+          if (s.label && s.label !== s.value) input.dataset.raw = s.value;
+          else delete input.dataset.raw;
           input.dispatchEvent(new Event('change', { bubbles: true }));
           list.hidden = true;
         },
@@ -911,9 +922,8 @@ function buildPicker(value, attrs, onChange, options) {
       list.append(opt);
     }
     list.hidden = !list.children.length;
-  };
+  }
   input.addEventListener('focus', openList);
-  input.addEventListener('input', openList);
   input.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 150));
   return wrap;
 }
