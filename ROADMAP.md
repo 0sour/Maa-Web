@@ -48,6 +48,10 @@
   - 需求：定时任务（schedules 定时执行队列）目前处于不可用状态，需要单独找时间排查修复
   - 现状：待排查——可能原因：容器重启后 schedules 未持久化/加载、tick 补偿窗口（COMPENSATE_MS=3h）过期不触发、Docker 容器内时间/时钟问题、或 fire 时队列读取失败
   - 排查建议：查看容器日志 `[scheduler]` 输出、检查 `config/maa-web/schedules.json` 是否在容器内正确落盘、手动触发验证（接口手动 fire 或临时缩短 tick 间隔）、确认 applyConfig/runDailyQueue 链路无异常
+- [ ] **S 修复公招识别不可用（记录于 2026-08-06）**：
+  - 需求：公招识别（Recruit 识别任务）目前处于不可用状态，需排查修复
+  - 现状：待排查——可能原因：tool 任务文件写入/读取失败、`maa run tool` 输出解析（extractRecruitResult 依赖日志格式）、词条页面判定条件（需已进入公招词条选择页且有空闲槽位）、Docker 容器内截图/OCR 环境（libatomic/资源缺失）
+  - 排查建议：手动在容器内跑一次公招识别（`maa run tool` + tool.json Recruit 任务）观察输出与退出码；检查 `state/maa/logs` 中本次运行的识别日志结构是否被 `extractRecruitResult` 正确解析；确认快速任务页「公招识别」入口的提交参数
 - [ ] **P 外部通知**（搁置，需额外 docker 部署，后续评估）：任务完成/失败推送（Bark/ServerChan/Telegram/Discord/Webhook）
 
 ### P1 UI/UX
