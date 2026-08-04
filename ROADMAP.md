@@ -44,6 +44,10 @@
   - 现状：抄作业只能输入作业代码（maa:///prts://）或填写服务器上的文件路径，手机端无法直接上传本地作业文件
   - 实施：`POST /api/copilot/upload`（multipart 或 base64 JSON 上传 → 校验作业 JSON（stage_name/actions）→ 保存 `config/copilot/upload-<时间戳>.json` → 返回路径 + 解析信息）；前端三个抄作业入口加「上传作业文件」按钮（文件选择 → 上传 → 自动填入/加入列表）；队列 Copilot 上传后加入作业列表（勾选即生效）
   - 成本：低；价值：中（手机端导入本地作业的刚需路径）
+- [ ] **R 修复定时任务不可用（记录于 2026-08-06）**：
+  - 需求：定时任务（schedules 定时执行队列）目前处于不可用状态，需要单独找时间排查修复
+  - 现状：待排查——可能原因：容器重启后 schedules 未持久化/加载、tick 补偿窗口（COMPENSATE_MS=3h）过期不触发、Docker 容器内时间/时钟问题、或 fire 时队列读取失败
+  - 排查建议：查看容器日志 `[scheduler]` 输出、检查 `config/maa-web/schedules.json` 是否在容器内正确落盘、手动触发验证（接口手动 fire 或临时缩短 tick 间隔）、确认 applyConfig/runDailyQueue 链路无异常
 - [ ] **P 外部通知**（搁置，需额外 docker 部署，后续评估）：任务完成/失败推送（Bark/ServerChan/Telegram/Discord/Webhook）
 
 ### P1 UI/UX
