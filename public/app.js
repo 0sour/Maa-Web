@@ -1861,6 +1861,7 @@ function openScheduleModal(id = '') {
   };
   $('#schedule-modal-title').textContent = item ? '编辑定时任务' : '新增定时任务';
   $('#schedule-name').value = state.scheduleForm.name;
+  $('#schedule-name').addEventListener('input', () => { state.scheduleForm.name = $('#schedule-name').value; });
   loadScheduleProfiles().then(() => {
     $('#schedule-profile').value = state.scheduleForm.profile;
   });
@@ -1920,11 +1921,12 @@ function addScheduleTime() {
 
 async function saveSchedule() {
   const f = state.scheduleForm;
+  const name = $('#schedule-name').value.trim();
   const body = {
-    name: f.name.trim(),
+    name,
     weekdays: f.weekdays,
     times: f.times,
-    profile: f.profile,
+    profile: $('#schedule-profile').value,
     config: $('#schedule-config').value,
     postAction: $('#schedule-post-action').value,
   };
