@@ -4,88 +4,49 @@
 
 ## 已完成
 
-- **任务队列**：多任务编排、参数编辑、拖拽排序、右键菜单、状态指示（✓/✗/·/●）、参数摘要、运行历史「重新运行」、侧栏面板排队任务列表、**队列状态实时自动保存**（防抖 500ms）
-- **定时任务**：周几+时间点调度、错过补偿（3h）、下次执行预览、**执行内容可选「任务队列」或「单任务」**（2026-08-06：单任务配置界面与任务队列完全一致——17 类任务类型、队列同款字段表单（基础/高级分组、肉鸽 theme 联动动态选项、抄作业本地文件+作业代码导入+作业集预览勾选即添加）；触发时生成独立任务文件 `tasks/maa-web-single.json` 执行，不覆盖 daily.json；支持后置动作；保存校验任务类型）
-- **快速任务页重构**：卡片式任务选择（日常/作战/抄作业/集成战略/其他 5 分类）、基础/进阶参数折叠、运行设置独立、最近使用标记、抄作业 maa:// 代码直达、**视频识别**（走工具通道）
+- **任务队列**：多任务编排、参数编辑、拖拽排序、右键菜单、状态指示（✓/✗/·/●）、参数摘要、运行历史「重新运行」、侧栏面板排队任务列表、队列状态实时自动保存（防抖 500ms）
+- **定时任务**（含 2026-08-06 单任务支持）：周几+时间点调度、错过补偿（3h）、下次执行预览；执行内容可选「任务队列」或「单任务」——单任务配置界面与任务队列完全一致（17 类任务类型、队列同款字段表单：基础/高级分组、肉鸽 theme 联动动态选项、抄作业本地文件+作业代码导入+作业集预览勾选即添加）；触发时生成独立任务文件 `tasks/maa-web-single.json` 执行（不覆盖 daily.json）；支持后置动作；保存校验任务类型；编辑回填
+- **快速任务页重构**：卡片式任务选择（日常/作战/抄作业/集成战略/其他 5 分类）、基础/进阶参数折叠、运行设置独立、最近使用标记、抄作业 maa:// 代码直达、视频识别（走工具通道）
+- **抄作业作业列表（O，2026-08-06 收尾）**：作业代码/作业集导入后自动预览展开列表（关卡/作者/浏览/难度/说明），支持勾选执行与全选/取消全选——快速任务页、队列 Copilot（勾选即添加/取消即移除，本地作业文件下拉）、定时任务单任务三处一致
+- **抄作业上传作业文件（Q，2026-08-06 完成）**：`POST /api/copilot/upload`（JSON body → 校验 stage_name/actions → 保存 `config/copilot/upload-<时间戳>.json` → 返回 path+items）；快速任务加「上传作业文件」按钮；保全/悖论模拟加上传按钮；队列 Copilot 上传后显示在作业列表
 - **信息识别页**（原工具箱+识别结果合并）：公招/仓库/干员识别卡片 + 识别结果历史（筛选/详情/删除）同页展示
-- **设备连接**：adb 扫描/连接/手动配置、分辨率调整、实时画面（帧率可选+自适应循环）、ws-scrcpy 远程控制（风格/主题/自适应/精简已对齐）
-- **配置管理**：config.toml 编辑、连接配置、profiles 选择
+- **设备连接与实例状态（K，2026-08-06）**：adb 扫描/连接/手动配置、分辨率调整、实时画面（帧率可选+自适应循环）、设备页「实例状态」卡片（连接状态+实时截图缩略 5s 刷新+任务状态+操作按钮）、ws-scrcpy 远程控制（风格/主题/自适应/精简对齐）、openScrcpyWindow 公共函数
+- **配置管理**：config.toml 编辑、连接配置、profiles 选择；**多配置快照（D，2026-08-06）**：保存当前队列为命名配置/一键切换/删除（`config/maa-web/configs/*.json`，含关联 profile）；定时任务关联队列配置（触发先 applyConfig 再执行）与后置动作（关闭游戏/休眠/关机，systemd 动作容器内自动检测提示不可用）
+- **库存维持（E，2026-08-06 完成）**：`maa fight -D<物品ID>=<数量>` 原生支持（收集到指定掉落数即停止，可多组）；`/api/items`（item_index.json 中文名/ID 搜索）+ 前端材料选择器（搜索+数量+删除，值 `ID=数量,ID=数量`），快速任务「掉落数停止条件」与队列「指定材料」均接入
+- **今日关卡按凌晨 4 点切换（T，2026-08-06 完成）**：`getHours() < 4` 按前一天计算星期；容器 TZ=Asia/Shanghai 边界验证 03:59/04:00
+- **主界面活动与今日关卡（A/F，2026-08-05 完成）**：队列页顶部「今日开放」（资源关按星期轮换+理智+掉落中文名）+「当期活动」（`maa activity`）；点击关卡智能路由（队列有理智作战直接填入，否则跳快速任务）；每 10 分钟轮询跨天自动切换；**自动检查更新**（GitHub Releases API + 6h 缓存、设置页状态提示、更新代理配置+测试按钮、--force 重装语义）
+- **右侧实时日志面板（H，2026-08-05 完成）**：右侧固定栏（320px，手机端抽屉）、实时更新+吸底跟随+复制/清空/收起、侧栏「实时日志」按钮、任务开始自动展开
+- **选项中文汉化（N，2026-08-06 收尾）**：客户端类型/代理倍率/服务器/额外选 Tag/设施/无人机用途/编队序号/助战模式/肉鸽与生息演算主题模式/突袭模式等全部 select/chips/boolMap 选项 `[值, 标签]` 中文对（值不变，显示层映射，参考原版 zh-cn.json）
+- **输入选项化（J，分批完成）**：第一波作战关卡选择（快速任务+队列「关卡」字段搜索下拉，显示理智+掉落，`/api/stages/list` 全量 532 关，stages.json mtime 自动重载）；第二波肉鸽参数选择（`/api/roguelike` 按主题动态分队/难度/模式/核心干员，is_start 过滤，切换主题清空已选）；第三波队列侧 Roguelike 字段（squad/core_char/roles/difficulty 接入同一 picker，roles 数据源来自 `/api/roguelike`）；**第四波未做：编队/客户端等其余字段**
+- **小游戏（牛杂）（X，2026-08-06 完成）**：MiniGame=资源任务链经 core `CustomTask` 执行（Gacha 走 C API 无 cli 入口、Peep=GUI 投屏）；动态扫描 `resource/tasks/tasks.json`（`*@Store@Begin`/`MiniGame@*` 入口含 doc 中文名，mtime 随 `maa update` 自动增删）→ `/api/minigames`；快速任务「小游戏」卡片 + `/api/run` minigame 分支生成 `tasks/maa-web-minigame.json` 执行；当前可用入口：`Store@Begin`（绿票、黄票商店）
+- **快速任务扩展（L，2026-08-06 判定不可行）**：maa-cli 0.7.5 tool 任务不支持 `Gacha`/`MiniGame` 类型，等后续版本支持再评估
+- **ws-scrcpy 远程控制优化（M，专项完成）**：①风格统一（三态主题对齐色板）②画面自适应（fitToScreen+等比缩放）③体验衔接（列表精简/覆盖层隐藏）④集成方式（保持新标签页，iframe 需反代 8000 端口收益低）⑤移动端细节（断线自动重连 3s 退避、状态文案汉化、≤768px 布局）；源码改动需 `npm run dist:prod` 重建，构建重置移动端 patch 需重新追加
 - **日志面板**：时间戳/级别着色/吸底跟随/显示更多/复制/下载
 - **外观**：深/浅/跟随系统主题 + 强调色
 - **安全与 PWA**：访问令牌（Bearer 校验）、manifest + 图标 + service worker
-- **更新管理**（2026-08-05 完成）：自动检查更新（GitHub Releases API + 6h 缓存）、设置页更新状态提示、「更新代理」配置 + 测试代理按钮（curl 实测连通/延迟/速度）、安装按钮 --force 重装语义、runMaintenance 路径修复（/api/ 前缀）
-- **主界面活动与今日关卡**（2026-08-05 完成）：任务队列页顶部「今日开放」（资源关按星期轮换 + 理智 + 掉落材料中文名）+「当期活动」（`maa activity` 解析）；点击关卡智能路由——队列有「理智作战」直接填入并自动保存，否则跳快速任务填入
-- **右侧实时日志面板**（2026-08-05 完成）：右侧固定栏（320px，手机端抽屉），实时更新 + 吸底跟随 + 复制/清空/收起；侧栏「实时日志」按钮主动展开；任务开始自动展开；原「日志」页删除（switchView('logs') 全部改为展开侧栏面板）
-- **关卡信息自动刷新**（2026-08-05 完成）：队列页停留时每 10 分钟轮询 `/api/stages/today`，跨天自动切换；init 首次加载立即显示（无需切换标签页）
-- **B 已撤销**（2026-08-05）：调研确认队列「添加任务」原生支持全部 17 类（含 Copilot/Roguelike/Reclamation/SSSCopilot/ParadoxCopilot/Custom，走 daily.json 任务文件一次执行）；此前拟加的「子命令队列化」与之重复已回退（loadQueueTypes/executeQueue/onDone 全部还原）；快速任务页为 CLI 直跑方式（URI/maa:// 代码），与队列 MaaCore 任务文件方式并存互补
-- **README + 关于页**（2026-08-05 完成）：完整 README（功能/功能边界/部署/Docker 教程/架构/未来任务）+ 侧边栏「关于」页（极简 markdown 渲染，实时读根目录 README.md）
-- **Docker 部署**（2026-08-05 完成）：Dockerfile（node:20-slim + adb/curl/libatomic1 + COPY README/bin/maa）、compose（代理环境变量化、宿主目录挂载 ~/.config、~/.local/share、~/.local/state、~/.cache/maa，数据无缝迁移）；已实际部署运行
-- **GitHub 同步**（2026-08-05）：仓库 0sour/Maa-Web，git 凭据 store + 项目代理固定；敏感信息（内网 IP/本地路径）已清理；作者身份修正为 0sour
-- **架构**：纯轮询（5s）无 SSE、静态资源版本号缓存策略、HTML 标签完整性校验（严格解析器）、jsdom + 服务端集成测试（17 个文件全绿）
+- **更新管理（F，2026-08-05 完成）**：自动检查更新、设置页更新状态、「更新代理」配置 + 测试代理按钮、安装按钮 --force 重装语义、runMaintenance 路径修复（/api/ 前缀）
+- **README + 关于页**（2026-08-05 完成）：完整 README（功能/边界/部署/Docker/架构/未来任务）+ 侧边栏「关于」页（极简 markdown 渲染）
+- **Docker 部署**（2026-08-05 完成）：Dockerfile（node:20-slim + adb/curl/libatomic1）、compose（代理环境变量化、~/.config、~/.local/share、~/.local/state、~/.cache/maa 挂载无缝迁移）；已实际部署运行
+- **GitHub 同步**（2026-08-05）：仓库 0sour/Maa-Web，敏感信息（内网 IP/本地路径）已清理，作者身份 0sour
+- **架构**：纯轮询（5s）无 SSE、静态资源版本号缓存策略、HTML 标签完整性校验（严格解析器）、jsdom + 服务端集成测试
 
-## 下一步优化清单（按优先级）
+## 待用户验证（已修复，实测后移除）
 
-### P1 功能完善（对应原版 MAA 差距）
+- [ ] **R 定时任务时区**（2026-08-06 已修复）：根因=容器时区 UTC 与本地差 8 小时；修复=compose 加 `TZ=Asia/Shanghai`（node 自带 ICU 时区数据）。API/落盘/tick 逻辑验证正常，待实测确认
+- [ ] **S 公招识别**（2026-08-06 已修复）：链路实测正常（asst.log callback 格式、`maa dir log`=/state/maa/debug、1080x1920 支持）；体验根因=未进入词条页时失败无提示；增强=无结果时读日志最近 `SubTaskError`（taskchain=Recruit）提示具体任务（如 `RecruitBegin 识别不到页面`）。待实测确认
 
-- [x] **A 主界面活动与今日关卡**（2026-08-05 完成）
-- [x] **B 快速任务队列化**（2026-08-05 撤销——队列原生已支持全部类型，无需子命令队列化）
+## 待办（按优先级）
+
+### P1 功能完善
+
 - [ ] **C 掉落统计页**：解析日志 Drops 回调，按次/按日汇总素材掉落
-- [x] **D 多配置/后置动作**（2026-08-06 完成）：队列配置快照（保存当前队列为命名配置/一键切换/删除，`config/maa-web/configs/*.json`，含关联连接 profile）；定时任务可关联队列配置（触发先 applyConfig 再执行）与后置动作；运行设置加「完成后动作」（关闭游戏 maa closedown / 休眠 / 关机，systemd 动作在容器内自动检测并提示不可用）
-- [x] **E 库存维持**（2026-08-06 完成）：maa-cli 原生支持 `maa fight -D<物品ID>=<数量>`（收集到指定掉落物数量即停止，可多组）；新增 `/api/items`（item_index.json 中文名/ID 搜索）+ 前端「材料选择器」（搜索选择材料+数量+删除，值格式 `ID=数量,ID=数量`），快速任务「掉落数停止条件」与队列「指定材料」均接入选择器
-- [x] **F 自动检查更新**（2026-08-05 完成）
-- [ ] **O 抄作业作业列表展示（记录于 2026-08-05）**：
-  - 需求：maa 的作业导入（maa:// 代码 / 作业集 maa://xxx s / 本地 JSON）后**可能包含多个作业任务**（作业集=多关、多作业文件），当前 web 只把 URI 填入输入框直接运行，**没有导入后作业列表的展示**（各作业关卡/说明/数量）
-  - 现状：快速任务 copilot 只有「作业 URI」输入框；运行后只能在日志里看到逐关输出
-  - 参考原版：CopilotViewModel 有作业列表 Tab（主线/SS/保全/悖论）+ 作业集批量拉取后逐项显示（关卡名/作者/说明），支持勾选运行
-  - 实施：服务端解析作业源（maa:// 代码 → 请求作业站 PRTS 获取作业 JSON，作业集展开为列表；本地文件读取 tasks 数组）→ 前端展示作业列表（关卡/名称/作者），支持勾选后运行；与现有 URI 输入并存
-  - 成本：中；价值：中（抄作业是高频功能，导入预览提升信任度）
-- [x] **Q 抄作业上传作业文件**（2026-08-06 完成）：`POST /api/copilot/upload`（JSON body → 校验 stage_name/actions → 保存 `config/copilot/upload-<时间戳>.json` → 返回 path+items）；快速任务「自动抄作业」加代码导入区「上传作业文件」按钮（上传后填入 uris 并自动预览）；「自动抄保全作业」「自动抄悖论模拟作业」新增上传按钮（填入 uri）；队列 Copilot 字段加「上传作业文件」（上传后显示在作业列表，勾选即生效）；新增 ui-upload-test.js 9 项断言全过
-- [ ] **R 修复定时任务不可用**（2026-08-06 已修复待验证）：根因=**容器时区 UTC 与用户本地差 8 小时**，定时任务按 UTC 触发导致时间错位；修复=compose 加 `TZ=Asia/Shanghai`（node 自带 ICU 时区数据，无需 tzdata）。API/落盘/tick 逻辑验证正常。**待用户实测确认后再标记完成**
-- [ ] **S 修复公招识别不可用**（2026-08-06 已修复待验证）：实测链路验证正常（任务执行、asst.log callback 格式、`maa dir log`=/state/maa/debug、分辨率 1080x1920 支持）；「不可用」体验根因=未进入词条页时失败且无原因提示；增强=无识别结果时自动读取日志中最近的 `SubTaskError`（taskchain=Recruit）并提示具体识别不到的任务（如 `RecruitBegin 识别不到页面`）。**待用户实测确认后再标记完成**
-- [x] **T 今日关卡按凌晨 4 点切换**（2026-08-06 完成）：`stages.js` 加 `gameDayWeekday()`——`getHours() < 4` 时按前一天计算星期，4 点整切换；容器 TZ=Asia/Shanghai 下用 +08:00 时间验证 03:59/04:00 边界正确
-- [ ] **U 设备页实时画面闪烁问题（记录于 2026-08-06）**：
-  - 问题：K 实例卡片中的实时画面缩略图**一闪一闪、时有时无**（5s 轮询更新 img src，每次重新加载 adb screencap 期间旧图被清空/加载中显示空白），影响设备页纵向阅读；**用户倾向：不建议保留此画面**
-  - 可选方案（记录备选，供用户决策）：
-    1. **直接移除**实例卡片中的截图缩略（推荐，用户倾向；卡片保留连接状态+任务状态+操作按钮，纵向阅读不受打扰）
-    2. 低频刷新（如 30s）仍会周期性闪动，治标不治本
-    3. 无闪烁替换：img 加载完成后再替换（双缓冲：新图 onload 后才插入 DOM），服务端已有 80ms 缓存、截图 ~0.3s；复杂度中等
-    4. 仅设备页可见时才刷新 + 加载中保留旧图（组合方案，最稳但改动最大）
 - [ ] **P 外部通知**（搁置，需额外 docker 部署，后续评估）：任务完成/失败推送（Bark/ServerChan/Telegram/Discord/Webhook）
+- [ ] **U 设备页实时画面闪烁**（待决策，用户倾向移除）：K 实例卡片截图缩略 5s 轮询导致一闪一闪。方案：1.直接移除缩略图（推荐）2.低频刷新（治标不治本）3.双缓冲 onload 替换 4.仅设备页可见时刷新+保留旧图（最稳改动最大）
 
 ### P1 UI/UX
 
-- [x] **H 右侧实时日志面板**（2026-08-05 完成，见已完成）
-- [x] **N 选项中文汉化（第一批）**（2026-08-05 完成，见已完成；剩余 boolMap 类选项后续补）
-- [ ] **J 输入选项化（专项，大工程）**：
-  - 进度：
-    - [x] **第一波：作战关卡选择**（2026-08-05 完成）：快速任务/队列的「关卡」字段改为自定义搜索下拉（点击展开/输入过滤/显示理智+掉落）；数据 `/api/stages/list` 全量 532 关（limit 放宽 1000），字母开头资源关优先排序；**stages.json 来自 MaaCore 资源，服务端 mtime 检测自动重载（随 `maa update` 更新生效，无需重启）**
-    - [x] **第二波：肉鸽参数选择**（2026-08-05 完成）：`/api/roguelike` 接口（分队表按主题 + 核心干员 is_start 过滤 + 难度/模式按主题动态）；快速任务「自动集成战略」的**分队/核心干员/难度/模式**全部改为搜索下拉（显示中文标签、值存 data-raw 提交、**切换主题自动清空已选**）；核心干员对齐官方逻辑（仅 is_start=true 的开局干员，排除组名/职业杂项）
-    - [ ] 第三波：**队列侧 Roguelike 字段**（dailyTaskTypes 的 squad/core_char/roles 接入同一 picker）；roles（开局招募组合）数据源待定
-    - [ ] 第四波：编队/客户端等其余字段
-  - 回退指引：关卡选择涉及 `server/stages.js`、`server/index.js`（/api/stages/list）、`public/app.js`（buildStagePicker/loadStageOptions 及 buildQuickInput/fieldInput 的 stage 分支）；肉鸽选择涉及 `server/roguelike.js`（/api/roguelike）、`public/app.js`（buildPicker 通用组件 + squad/coreChar/difficulty/mode 分支 + theme 联动清空）
-- [ ] **N 选项中文汉化（专项）**：界面英文/标识符选项替换为中文（客户端类型/肉鸽主题/无人机用途/设施/代理倍率等），值不变、显示层映射中文标签，参考 MAA 原版 zh-cn.json 词表；与 J 配合
-- [x] **N 选项中文汉化（第一批）**（2026-08-05 完成）：
-  - 范围：客户端类型（官服/B服/渠道服/国际服/日服/韩服）、代理倍率（不切换/AUTO/N倍）、服务器（国服/美服/日服/韩服）、额外选 Tag 模式、基建设施（制造站/贸易站/…）、无人机用途（龙门币/合成玉/…）、编队序号（默认/编队1-4）、助战使用模式、肉鸽主题（傀影/水月/萨米/萨卡兹/界园）与模式、生息演算主题/模式/连点长按、抄作业突袭模式——**值不变，显示层映射中文标签**（`[值, 标签]` 对）
-  - 改动文件（**回退指引**：`git checkout` 或撤销以下文件即可部分回退）：
-    1. `server/taskSchemas.js`：CLIENTS/ROGUELIKE_THEMES/RECLAMATION_THEMES 常量与 raid/supportUnitUsage/roguelike mode/reclamation 字段 options → 标签对
-    2. `server/dailyTaskTypes.js`：CLIENTS 常量与 series/server/extra_tags_mode/facility/drones/formation_index/support_unit_usage/theme 字段 options → 标签对
-    3. `public/app.js`：buildQuickInput select 分支 + fieldInput chips 分支支持 `[值, 标签]` 对（**回退需同时还原这两处渲染逻辑**）
-  - 未覆盖：boolMap 类（凹开局期望等，hint 已有中文对照）留待后续
-- [x] **N 剩余汉化收尾**（2026-08-06 完成）：boolMap 选项（热水壶/护盾/源石锭/…）本已汉化；补上最后残留：Recruit「服务器」选项 `['','CN','US','JP','KR']` → `[['','默认'],['CN','国服'],…]`（server/dailyTaskTypes.js）；全部 select/chips/boolMap 选项均已为 `[值, 标签]` 中文对
-- [x] **K 设备状态页整合**（2026-08-06 完成）：设备页新增「实例状态」卡片——连接状态（点/设备名/序列号/触控/adb）+ 实时截图缩略（5s 轮询刷新）+ 任务运行状态 + 操作（远程控制/全屏画面/连接配置），openScrcpyWindow 抽为公共函数
-- [x] **L 快速任务扩展**（2026-08-06 判定不可行）：maa-cli 0.7.5 tool 任务不支持 `Gacha`/`MiniGame` 类型（`unknown variant`），无法实现抽卡十连/小游戏刷取；等 maa-cli 后续版本支持后再评估
-- [x] **X 小游戏（牛杂）支持**（2026-08-06 完成）：调研确认 MAA 客户端「小工具」页的牛杂（MiniGame）本质是**资源任务链**，经 core `CustomTask`（`task_names` 任意任务名 + SecretFront 特化）执行，Gacha（牛牛抽卡）走 core 专用 C API `AsstStartGacha`（cli 无入口），Peep（牛牛监控）为 GUI 投屏（ws-scrcpy 已等价）；实现=**不硬编码、动态扫描** `resource/tasks/tasks.json`（`*@Store@Begin`/`Store@Begin`/`MiniGame@*` 入口，含 doc 中文名与 商店/小游戏 分类，mtime 检测随 `maa update` **自动增删**）→ `/api/minigames`；快速任务新增「小游戏」卡片（动态选择器）+ `/api/run` minigame 分支动态生成 `tasks/maa-web-minigame.json`（type=Custom, task_names=[入口]）后 `maa run` 执行；当前资源可用入口：`Store@Begin`（绿票、黄票商店）
-- [x] **M ws-scrcpy 集成优化**（2026-08-06 完成）：见专项
-
-### P1 ws-scrcpy 远程控制优化（专项）
-
-- 进度：
-  - [x] **① 风格统一**（完成）：亮/暗/跟随系统三态对齐 maa-web 色板，URL `?theme=` 驱动；按钮/morebox/设备卡片/分隔符样式对齐
-  - [x] **② 画面自适应**（完成）：fitToScreen 强制自适应；画面/触摸层等比缩放不超视口
-  - [x] **③ 体验衔接**（完成）：设备列表精简、流页面隐藏列表覆盖层、.video 容器透明化
-  - [x] **④ 集成方式**（完成，保持现状）：维持新标签页跳转；iframe 嵌入需反代 8000 端口且与现有 `#!/` hash 路由冲突，收益低不采用
-  - [x] **⑤ 移动端细节**（完成）：流连接**断线自动重连**（3s 退避、用户主动停止不重连、重连失败持续重试）；断开/等待/就绪等状态文案汉化（`已断开连接，3 秒后自动重连…`/`连接中…`/`就绪`/`等待设备信息…`）；标题汉化（设备名 - 远程控制）；移动端工具栏布局优化（main.css 追加 media query：控件网格/按钮列/弹层适配 ≤768px）；界面主文案汉化（iOS 专有难度等保留英文，安卓主场景不涉及）
-- 注意：ws-scrcpy 源码改动（断线重连/汉化）需 `npm run dist:prod` 重新构建；构建会重置 `dist/public/main.css` 移动端 patch，需重新追加（见本文件附注）；部署见 `docs/WSCRCPY.md`
+- [ ] **J 第四波（剩余）**：编队/客户端等其余字段选项化（第一~三波已完成，见上）
+- [ ] 队列/快速任务运行错误自动重试策略
 
 ### P2
 
@@ -97,8 +58,14 @@
 - [ ] 日志按级别过滤
 - [ ] 侧栏常驻 adb 连接状态
 - [ ] 截图失败自动重试与降级提示
-- [ ] 队列运行错误自动重试策略
 - [ ] 掉落/仓库趋势图（canvas 折线）
+
+## 回退指引
+
+- 关卡选择（J 第一波）：`server/stages.js`、`server/index.js`（/api/stages/list）、`public/app.js`（buildStagePicker/loadStageOptions 及 buildQuickInput/fieldInput 的 stage 分支）
+- 肉鸽选择（J 第二/三波）：`server/roguelike.js`（/api/roguelike）、`public/app.js`（buildPicker 通用组件 + squad/coreChar/difficulty/mode/roles 分支 + theme 联动清空）
+- 汉化（N）：`server/taskSchemas.js`（CLIENTS/ROGUELIKE_THEMES/RECLAMATION_THEMES 及 raid/supportUnitUsage/roguelike mode/reclamation options）、`server/dailyTaskTypes.js`（CLIENTS 及 series/server/extra_tags_mode/facility/drones/formation_index/support_unit_usage/theme options）、`public/app.js`（buildQuickInput select 分支 + fieldInput chips 分支的 `[值, 标签]` 渲染）
+- 定时任务单任务：`server/schedules.js`（task 字段/runSingleTask）、`server/index.js`（scheduler.init runSingleTask、BY_TYPE 校验）、`public/app.js`（renderScheduleTaskType/Fields 队列式渲染）、`public/index.html`（schedule-mode/schedule-task-* 弹窗区）
 
 ## 参考项目
 
@@ -108,7 +75,7 @@
 
 ## 测试与部署
 
-- 回归（开发环境）：`for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu ui-scrcpy ui-token ui-quick ui-autosave; do timeout 90 node $t-test.js 2>ui-token ui-quick ui-autosave; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1`1 | tail -1; done; timeout 90 node server-api-test.js 2>ui-token ui-quick ui-autosave; do echo "== $t =="; timeout 90 node $t-test.js 2>&1 | tail -1; done && timeout 90 node server-api-test.js 2>&1 | tail -1`1 | tail -1`
-- 前端改动后更新 `public/index.html` 资源版本号并重启：`PORT=3100 node server/index.js`（paseo 终端 2b6b9f2f）
+- 回归（开发环境，脚本在 /tmp/opencode/）：`for t in ui-device ui-runner ui-screen ui-queue-checkbox ui-new-fields ui-results ui-schedule ui-queue-v2 ui-poll ui-mxu ui-scrcpy ui-token ui-quick ui-autosave ui-copilot ui-drops ui-stages ui-minigame ui-schedule-queue ui-upload ui-about ui-configs; do echo "== $t =="; timeout 90 node /tmp/opencode/$t-test.js 2>&1 | tail -1; done && timeout 90 node /tmp/opencode/server-api-test.js 2>&1 | tail -1`
+- 前端改动后更新 `public/index.html` 资源版本号并重建容器：`export BUILD_HTTP_PROXY=http://192.168.10.110:7890 BUILD_HTTPS_PROXY=http://192.168.10.110:7890 && sg docker -c "docker compose up -d --build"`
 - HTML 改动后跑标签完整性校验（Python 严格解析器）
-- ws-scrcpy 服务：`<ws-scrcpy 目录>/dist`，`PATH=<项目目录>/bin/platform-tools:$PATH node ./index.js`
+- ws-scrcpy 服务：`<ws-scrcpy 目录>/dist`，`PATH=<项目目录>/bin/platform-tools:$PATH node ./index.js`；源码改动需 `npm run dist:prod` 重建（见 `docs/WSCRCPY.md`）
