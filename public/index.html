@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>MAA Web 控制台</title>
-  <link rel="stylesheet" href="style.css?v=20260806g" />
+  <link rel="stylesheet" href="style.css?v=20260806h" />
 </head>
 <body>
   <div class="layout">
@@ -318,6 +318,17 @@
             </div>
             <div class="sm-body">
               <label class="field"><span>任务名称</span><input type="text" id="schedule-name" placeholder="如：每日清日常" maxlength="40" /></label>
+              <div class="field"><span>执行内容</span>
+                <select id="schedule-mode">
+                  <option value="queue">任务队列（启用任务）</option>
+                  <option value="single">单任务</option>
+                </select>
+              </div>
+              <div class="field" id="schedule-single-wrap" style="display:none">
+                <span>任务类型</span>
+                <select id="schedule-task-type"></select>
+                <div id="schedule-task-fields" class="schedule-task-fields"></div>
+              </div>
               <div class="field"><span>执行星期（不选表示每天）</span>
                 <div class="weekday-picker" id="schedule-weekdays"></div>
               </div>
@@ -333,7 +344,7 @@
               <label class="field"><span>连接配置</span>
                 <select id="schedule-profile"><option value="">跟随全局配置</option></select>
               </label>
-              <label class="field"><span>队列配置（触发时先切换）</span>
+              <label class="field" id="schedule-config-wrap"><span>队列配置（触发时先切换）</span>
                 <select id="schedule-config"><option value="">跟随当前队列</option></select>
               </label>
               <label class="field"><span>完成后动作</span>
@@ -535,6 +546,6 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="app.js?v=20260806n"></script>
+  <script src="app.js?v=20260806o"></script>
 </body>
 </html>

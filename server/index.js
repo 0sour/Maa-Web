@@ -992,7 +992,11 @@ app.get('/api/schedules', async (_req, res) => {
 
 app.post('/api/schedules', async (req, res) => {
   try {
-    const item = await scheduler.add(req.body || {});
+    const body = req.body || {};
+    if (body.task && !TASK_SCHEMAS[body.task.type]) {
+      return res.status(400).json({ error: `未知任务类型: ${body.task.type}` });
+    }
+    const item = await scheduler.add(body);
     res.json({ ok: true, item });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -1001,7 +1005,11 @@ app.post('/api/schedules', async (req, res) => {
 
 app.post('/api/schedules/:id', async (req, res) => {
   try {
-    const item = await scheduler.update(req.params.id, req.body || {});
+    const body = req.body || {};
+    if (body.task && !TASK_SCHEMAS[body.task.type]) {
+      return res.status(400).json({ error: `未知任务类型: ${body.task.type}` });
+    }
+    const item = await scheduler.update(req.params.id, body);
     if (!item) return res.status(404).json({ error: '定时任务不存在' });
     res.json({ ok: true, item });
   } catch (err) {
@@ -1266,6 +1274,13 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     runDailyQueue: async ({ profile, name, postAction }) => {
       const r = await runDailyQueue({ profile, name, postAction });
       return r.id;
+    },
+    runSingleTask: async ({ type, params, name, postAction }) => {
+      if (!TASK_SCHEMAS[type]) throw new Error(`未知任务类型: ${type}`);
+      const command = buildArgs(type, params || {}, {});
+      const { id } = runner.start({ command, name });
+      if (postAction) pendingPostActions[id] = postAction;
+      return id;
     },
   });
 });

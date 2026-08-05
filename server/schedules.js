@@ -30,6 +30,10 @@ function validate(data) {
   const weekdays = Array.isArray(data.weekdays)
     ? [...new Set(data.weekdays.map(Number))].filter((w) => w >= 1 && w <= 7).sort((a, b) => a - b)
     : [];
+  const task = data.task && typeof data.task === 'object'
+    && typeof data.task.type === 'string' && data.task.type.trim()
+    ? { type: data.task.type.trim(), params: data.task.params && typeof data.task.params === 'object' ? data.task.params : {} }
+    : null;
   return {
     name,
     times,
@@ -37,6 +41,7 @@ function validate(data) {
     profile: String(data.profile || '').trim(),
     config: String(data.config || '').trim(),
     postAction: String(data.postAction || '').trim(),
+    task,
     enabled: data.enabled !== false,
   };
 }
@@ -52,9 +57,10 @@ class Scheduler {
     this.timer = null;
   }
 
-  init({ getConfigDir, runDailyQueue, applyConfig, intervalMs = TICK_MS }) {
+  init({ getConfigDir, runDailyQueue, runSingleTask, applyConfig, intervalMs = TICK_MS }) {
     this.getConfigDir = getConfigDir;
     this.runDailyQueue = runDailyQueue;
+    this.runSingleTask = runSingleTask || null;
     this.applyConfig = applyConfig || null;
     this.timer = setInterval(() => this.tick(), intervalMs);
     if (this.timer.unref) this.timer.unref();
@@ -132,6 +138,7 @@ class Scheduler {
         profile: item.profile,
         config: item.config,
         postAction: item.postAction,
+        task: item.task || null,
         nextRun: next ? next.toISOString() : null,
       };
     });
@@ -168,7 +175,6 @@ class Scheduler {
   }
 
   async fire(item, at) {
-    if (!this.runDailyQueue) return;
     try {
       if (item.config && this.applyConfig) {
         try {
@@ -177,6 +183,17 @@ class Scheduler {
           console.log(`[scheduler] config "${item.config}" apply failed: ${err.message}`);
         }
       }
+      if (item.task && this.runSingleTask) {
+        await this.runSingleTask({
+          type: item.task.type,
+          params: item.task.params || {},
+          name: `[定时] ${item.name}`,
+          postAction: item.postAction,
+        });
+        console.log(`[scheduler] fired ${item.name} (single:${item.task.type}) at ${fmtSlot(at)}`);
+        return;
+      }
+      if (!this.runDailyQueue) return;
       await this.runDailyQueue({
         profile: item.profile,
         name: `[定时] ${item.name}`,

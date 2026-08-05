@@ -1806,6 +1806,9 @@ function renderSchedules() {
       ? '每天'
       : s.weekdays.map((w) => `周${WEEKDAY_LABELS[w - 1]}`).join('、');
     const nextText = s.enabled && s.nextRun ? `下次：${fmtTime(s.nextRun)}` : '已停用';
+    const contentText = s.task
+      ? `单任务：${(state.quickSchemas && state.quickSchemas[s.task.type] && state.quickSchemas[s.task.type].label) || s.task.type}`
+      : '任务队列（启用任务）';
     const card = elt('div', { class: `schedule-card${s.enabled ? '' : ' disabled'}` });
     card.append(
       elt('div', { class: 'schedule-top' }, [
@@ -1818,7 +1821,7 @@ function renderSchedules() {
           elt('span', {}, s.enabled ? '已启用' : '已停用'),
         ]),
       ]),
-      elt('div', { class: 'schedule-row' }, [esc(wdText)]),
+      elt('div', { class: 'schedule-row' }, [esc(wdText), ' · ', elt('span', { class: 'schedule-content' }, contentText)]),
       elt('div', { class: 'schedule-times-row' }, s.times.map((t) => elt('span', { class: 'chip on' }, esc(t)))),
       elt('div', { class: 'schedule-actions' }, [
         elt('button', { class: 'btn sm', onclick: () => openScheduleModal(s.id) }, '编辑'),
@@ -1858,6 +1861,9 @@ function openScheduleModal(id = '') {
     profile: item ? item.profile : '',
     config: item ? item.config : '',
     postAction: item ? item.postAction : '',
+    taskMode: item && item.task ? 'single' : 'queue',
+    taskType: item && item.task ? item.task.type : 'fight',
+    taskParams: item && item.task ? { ...item.task.params } : {},
   };
   $('#schedule-modal-title').textContent = item ? '编辑定时任务' : '新增定时任务';
   $('#schedule-name').value = state.scheduleForm.name;
@@ -1869,9 +1875,60 @@ function openScheduleModal(id = '') {
     $('#schedule-config').value = state.scheduleForm.config;
   });
   $('#schedule-post-action').value = state.scheduleForm.postAction;
+  $('#schedule-mode').value = state.scheduleForm.taskMode;
+  renderScheduleMode();
+  renderScheduleTaskType();
   renderWeekdayPicker();
   renderScheduleTimes();
   $('#schedule-modal').showModal();
+}
+
+function renderScheduleMode() {
+  const mode = $('#schedule-mode').value;
+  state.scheduleForm.taskMode = mode;
+  $('#schedule-single-wrap').style.display = mode === 'single' ? '' : 'none';
+  $('#schedule-config-wrap').style.display = mode === 'single' ? 'none' : '';
+}
+
+function renderScheduleTaskType() {
+  const sel = $('#schedule-task-type');
+  sel.innerHTML = '';
+  for (const [key, s] of Object.entries(state.quickSchemas || {})) {
+    if (!s.label || s.viaTool) continue;
+    sel.append(elt('option', { value: key }, s.label));
+  }
+  sel.value = state.scheduleForm.taskType || 'fight';
+  sel.onchange = () => {
+    state.scheduleForm.taskType = sel.value;
+    state.scheduleForm.taskParams = {};
+    renderScheduleTaskFields();
+  };
+  renderScheduleTaskFields();
+}
+
+function renderScheduleTaskFields() {
+  const box = $('#schedule-task-fields');
+  box.innerHTML = '';
+  const schema = (state.quickSchemas || {})[state.scheduleForm.taskType];
+  if (!schema) return;
+  for (const f of schema.fields) {
+    if (f.name === 'addr') continue;
+    const wrap = elt('div', { class: 'field' }, [elt('label', {}, f.label)]);
+    wrap.append(buildQuickInput(f));
+    box.append(wrap);
+  }
+  applyScheduleTaskValues();
+}
+
+function applyScheduleTaskValues() {
+  const params = state.scheduleForm.taskParams || {};
+  for (const el of $$('[data-name]', $('#schedule-task-fields'))) {
+    const v = params[el.dataset.name];
+    if (v === undefined) continue;
+    if (el.type === 'checkbox') el.checked = !!v;
+    else if (el.dataset.raw !== undefined) el.dataset.raw = String(v);
+    else el.value = String(v);
+  }
 }
 
 function renderWeekdayPicker() {
@@ -1922,13 +1979,27 @@ function addScheduleTime() {
 async function saveSchedule() {
   const f = state.scheduleForm;
   const name = $('#schedule-name').value.trim();
+  const mode = $('#schedule-mode').value;
+  let task = null;
+  if (mode === 'single') {
+    const type = $('#schedule-task-type').value;
+    const params = {};
+    for (const el of $$('[data-name]', $('#schedule-task-fields'))) {
+      if (el.type === 'checkbox') { if (el.checked) params[el.dataset.name] = true; }
+      else if (el.dataset.raw !== undefined) { if (el.dataset.raw !== '') params[el.dataset.name] = el.dataset.raw; }
+      else if (el.value !== '') params[el.dataset.name] = el.value;
+    }
+    if (!type) { toast('请选择任务类型', 'error'); return; }
+    task = { type, params };
+  }
   const body = {
     name,
     weekdays: f.weekdays,
     times: f.times,
     profile: $('#schedule-profile').value,
-    config: $('#schedule-config').value,
+    config: mode === 'single' ? '' : $('#schedule-config').value,
     postAction: $('#schedule-post-action').value,
+    task,
   };
   if (!body.name) { toast('请填写任务名称', 'error'); return; }
   if (!body.times.length) { toast('请至少添加一个执行时间', 'error'); return; }
@@ -3017,6 +3088,10 @@ function bindEvents() {
   $('#schedule-close').addEventListener('click', () => $('#schedule-modal').close());
   $('#schedule-cancel').addEventListener('click', () => $('#schedule-modal').close());
   $('#schedule-save').addEventListener('click', saveSchedule);
+  $('#schedule-mode').addEventListener('change', () => {
+    renderScheduleMode();
+    renderScheduleTaskFields();
+  });
   $('#schedule-time-add').addEventListener('click', addScheduleTime);
   $('#schedule-time-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addScheduleTime(); }
