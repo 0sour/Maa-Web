@@ -1946,6 +1946,9 @@ async function saveSchedule() {
 
 /* ---------------- config ---------- */
 
+/* 系统自动生成的文件（队列/小游戏运行产物），不提供删除 */
+const SYSTEM_CONFIG_FILES = ['daily.json', 'maa-web-minigame.json'];
+
 async function loadConfigFiles() {
   const dir = $('#config-dir-select').value;
   const data = await api(`/api/config/files?dir=${dir}`);
@@ -1957,14 +1960,30 @@ async function loadConfigFiles() {
     return;
   }
   for (const f of data.files) {
+    const actions = [
+      elt('button', { class: 'btn', onclick: () => editConfigFile(dir, f.name) }, '编辑'),
+    ];
+    if (!SYSTEM_CONFIG_FILES.includes(f.name)) {
+      actions.push(elt('button', { class: 'btn danger', onclick: () => deleteConfigFile(dir, f.name) }, '删除'));
+    }
     const item = elt('div', { class: 'file-item' }, [
       elt('div', { class: 'name' }, f.name),
       elt('div', { class: 'meta' }, `${(f.size / 1024).toFixed(1)} KB`),
-      elt('div', { class: 'actions' }, [
-        elt('button', { class: 'btn', onclick: () => editConfigFile(dir, f.name) }, '编辑'),
-      ]),
+      elt('div', { class: 'actions' }, actions),
     ]);
     list.append(item);
+  }
+}
+
+async function deleteConfigFile(dir, name) {
+  const rel = dir === 'root' ? name : `${dir}/${name}`;
+  if (!confirm(`确定删除 ${rel}？此操作不可恢复`)) return;
+  try {
+    await api('/api/config/file/delete', { method: 'POST', body: JSON.stringify({ path: rel }) });
+    toast('已删除', 'success');
+    await loadConfigFiles();
+  } catch (err) {
+    toast(err.message, 'error');
   }
 }
 
