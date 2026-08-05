@@ -186,7 +186,7 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .view.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
 
-.page-head { margin-bottom: 14px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .page-head h1 { font-size: 20px; }
 .page-head .sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
 h2 { font-size: 15px; margin-bottom: 12px; }
@@ -678,15 +678,21 @@ textarea.editor {
 .schedule-card {
   display: flex; flex-direction: column; gap: 10px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+  transition: border-color .15s, transform .15s;
 }
+.schedule-card:hover { border-color: var(--accent); }
 .schedule-card.disabled { opacity: .55; }
+.schedule-card.disabled:hover { border-color: var(--border); }
 .schedule-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.schedule-name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.schedule-next { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.schedule-name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; word-break: break-all; }
+.schedule-next { font-size: 12px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
 .schedule-times-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .schedule-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .schedule-actions { display: flex; gap: 8px; justify-content: flex-end; }
-.schedule-empty { color: var(--muted); font-size: 13px; padding: 32px 0; text-align: center; }
+.schedule-empty {
+  color: var(--muted); font-size: 13px; padding: 48px 0; text-align: center;
+  border: 1px dashed var(--border); border-radius: 12px; background: var(--panel);
+}
 
 dialog#schedule-modal {
   border: 1px solid var(--border); border-radius: 14px; padding: 0;

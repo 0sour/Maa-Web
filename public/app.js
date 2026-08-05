@@ -1798,7 +1798,7 @@ function renderSchedules() {
   const list = $('#schedule-list');
   list.innerHTML = '';
   if (!state.schedules.length) {
-    list.innerHTML = '<div class="schedule-empty">暂无定时任务，点击右上角「新增定时任务」创建</div>';
+    list.innerHTML = '<div class="schedule-empty">暂无定时任务<br>点击上方「新增定时任务」创建</div>';
     return;
   }
   for (const s of state.schedules) {
