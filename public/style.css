@@ -691,6 +691,8 @@ textarea.editor {
 .schedule-content { color: var(--accent); }
 .schedule-task-fields { margin-top: 10px; display: grid; gap: 10px; }
 .schedule-task-fields .field { display: grid; gap: 4px; }
+.schedule-task-fields .group.fields { grid-template-columns: 1fr; }
+.schedule-task-fields .copilot-list { max-height: 200px; overflow-y: auto; }
 .schedule-task-fields .drops-picker { max-height: 180px; overflow-y: auto; }
 .schedule-task-fields .suggest { max-height: 150px; overflow-y: auto; }
 .schedule-actions { display: flex; gap: 8px; justify-content: flex-end; }

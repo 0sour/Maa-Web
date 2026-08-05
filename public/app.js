@@ -390,13 +390,13 @@ function renderQueueSettings() {
   wrap.append(groups);
 }
 
-function fieldsGroup(title, fields, item, advanced = false) {
+function fieldsGroup(title, fields, item, advanced = false, opts) {
   const box = elt('div', { class: 'group fields' });
   const head = elt('div', { class: 'group-title' }, title);
   if (advanced) head.append(elt('span', { class: 'grp-badge' }, '高级'));
   box.append(head);
   for (const f of fields) {
-    box.append(fieldInput(f, item));
+    box.append(fieldInput(f, item, opts));
   }
   return box;
 }
@@ -486,8 +486,10 @@ function buildDropsPicker(initial, onValue) {
   return box;
 }
 
-function fieldInput(f, item) {
+function fieldInput(f, item, opts = {}) {
   // 队列抄作业：原始 rows 表单字段隐藏，统一用直观的作业列表区（值由导入功能维护）
+  const apply = (v) => setParam(item, f, v, opts.silent);
+  const idPrefix = opts.idPrefix || 'copilot-qlist-';
   if (item.type === 'Copilot' && f.name === 'copilot_list') {
     return elt('div', { style: 'display:none' });
   }
@@ -500,7 +502,7 @@ function fieldInput(f, item) {
   if (isCopilot && f.name === 'filename') {
     // 队列侧抄作业：与快速任务一致的作业列表（预览/勾选/导入落地）+ 本地文件下拉
     const row = elt('div', { class: 'toolbar', style: 'gap:8px;width:100%' });
-    const picker = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择本地作业文件或手输路径' }, (v) => setParam(item, f, v), () => {
+    const picker = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择本地作业文件或手输路径' }, (v) => apply( v), () => {
       const files = state.copilotFiles || [];
       return files.map((fp) => ({ value: fp, label: fp.replace(/^.*[/\\]/, '') }));
     });
@@ -515,7 +517,7 @@ function fieldInput(f, item) {
     wrap.append(row);
     if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
     // 作业列表区（自动预览 + 勾选即生效：勾选自动保存，取消自动移除）
-    const listBox = elt('div', { class: 'copilot-list', id: `copilot-qlist-${item.type}` });
+    const listBox = elt('div', { class: 'copilot-list', id: `${idPrefix}${item.type}` });
     const listWrap = elt('div', { class: 'field full' }, [
       elt('label', {}, '作业列表（输入代码后自动显示，勾选即添加到任务，取消即移除）'),
       listBox,
@@ -542,7 +544,7 @@ function fieldInput(f, item) {
       for (const o of opts) input.append(elt('option', { value: o.v }, o.l));
       if (cur !== undefined && cur !== '') input.value = String(cur);
       input.addEventListener('change', () => {
-        setParam(item, f, input.value);
+        apply( input.value);
         // 队列侧肉鸽：切换主题刷新分队/难度/模式/干员选项并清空已选
         if (isRoguelike && f.name === 'theme') {
           loadRoguelikeData(input.value);
@@ -560,7 +562,7 @@ function fieldInput(f, item) {
     case 'checkbox': {
       input = elt('input', { type: 'checkbox', class: 'enabled' });
       if (cur) input.checked = true;
-      input.addEventListener('change', () => setParam(item, f, input.checked));
+      input.addEventListener('change', () => apply( input.checked));
       wrap.classList.add('chk-row');
       wrap.append(input);
       if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
@@ -578,7 +580,7 @@ function fieldInput(f, item) {
           const arr = Array.isArray(item.params[f.name]) ? item.params[f.name].slice() : [];
           const idx = arr.indexOf(v);
           if (idx >= 0) arr.splice(idx, 1); else arr.push(v);
-          setParam(item, f, arr);
+          apply( arr);
           renderQueueSettings();
         });
         box.append(chip);
@@ -587,13 +589,13 @@ function fieldInput(f, item) {
       break;
     }
     case 'drops': {
-      input = buildDropsPicker(cur, (v) => setParam(item, f, v));
+      input = buildDropsPicker(cur, (v) => apply( v));
       break;
     }
     case 'strNumMap': {
       const val = Array.isArray(cur) ? cur.join(',') : (cur !== undefined && typeof cur === 'object' ? Object.entries(cur).map(([k, v]) => `${k}=${v}`).join(',') : (cur !== undefined ? String(cur) : ''));
       input = elt('input', { type: 'text', placeholder: f.placeholder || '', value: val });
-      input.addEventListener('change', () => setParam(item, f, input.value));
+      input.addEventListener('change', () => apply( input.value));
       break;
     }
     case 'boolMap': {
@@ -609,8 +611,8 @@ function fieldInput(f, item) {
             : (item.params[f.name] && typeof item.params[f.name] === 'object' ? Object.keys(item.params[f.name]) : []);
           const idx = arr.indexOf(v);
           if (idx >= 0) arr.splice(idx, 1); else arr.push(v);
-          setParam(item, f, arr);
-          renderQueueSettings();
+          apply(arr);
+          if (!opts.silent) renderQueueSettings();
         });
         box.append(chip);
       }
@@ -623,19 +625,19 @@ function fieldInput(f, item) {
       const val = Array.isArray(cur) ? cur.map((r) => (typeof r === 'object' ? (f.cols || []).map((c) => String(r[c] ?? '')).join(',') : String(r))).join('\n')
         : (cur !== undefined && typeof cur === 'object' ? JSON.stringify(cur, null, 2) : (cur !== undefined ? String(cur) : ''));
       input = elt('textarea', { class: 'rows-input', placeholder: f.placeholder || '', rows: f.type === 'json' ? '4' : '3', value: val, spellcheck: 'false' });
-      input.addEventListener('change', () => setParam(item, f, input.value));
+      input.addEventListener('change', () => apply( input.value));
       wrap.classList.add('full');
       break;
     }
     default: {
       if (f.name === 'stage') {
-        input = buildStagePicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name }, (v) => setParam(item, f, v));
+        input = buildStagePicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name }, (v) => apply( v));
         wrap.append(input);
         if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
         return wrap;
       }
       if (isRoguelike && (f.name === 'squad' || f.name === 'roles' || f.name === 'core_char')) {
-        input = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择' }, (v) => setParam(item, f, v), () => {
+        input = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择' }, (v) => apply( v), () => {
           const d = state.roguelikeData || {};
           if (f.name === 'squad') return (d.squads || []).map((s) => ({ value: s.value, label: s.label }));
           if (f.name === 'roles') return (d.roles || []).map((r) => ({ value: r.value, label: r.label }));
@@ -646,7 +648,7 @@ function fieldInput(f, item) {
         return wrap;
       }
       if (isRoguelike && f.name === 'difficulty') {
-        input = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择难度' }, (v) => setParam(item, f, v), () => {
+        input = buildPicker(cur !== undefined && cur !== null ? String(cur) : '', { 'data-param': f.name, placeholder: '选择难度' }, (v) => apply( v), () => {
           const d = state.roguelikeData || {};
           return (d.difficulties || []).map((x) => ({ value: x.value, label: x.label }));
         });
@@ -660,7 +662,7 @@ function fieldInput(f, item) {
         value: cur !== undefined && cur !== null ? String(cur) : '',
         step: f.step,
       });
-      input.addEventListener('change', () => setParam(item, f, input.value));
+      input.addEventListener('change', () => apply( input.value));
     }
   }
   if (input && typeof input.setAttribute === 'function') input.setAttribute('data-param', f.name);
@@ -669,13 +671,13 @@ function fieldInput(f, item) {
   return wrap;
 }
 
-function setParam(item, field, raw) {
+function setParam(item, field, raw, silent) {
   if (!item.params) item.params = {};
   const { valueToParam } = queueHelpers;
   const v = valueToParam(field, raw);
   if (v === undefined) delete item.params[field.name];
   else item.params[field.name] = v;
-  autosaveQueue();
+  if (!silent) autosaveQueue();
 }
 
 /* 队列自动保存：所有变更防抖 500ms 落盘 */
@@ -1865,7 +1867,7 @@ function openScheduleModal(id = '') {
     config: item ? item.config : '',
     postAction: item ? item.postAction : '',
     taskMode: item && item.task ? 'single' : 'queue',
-    taskType: item && item.task ? item.task.type : 'fight',
+    taskType: item && item.task ? item.task.type : 'Fight',
     taskParams: item && item.task ? { ...item.task.params } : {},
   };
   $('#schedule-modal-title').textContent = item ? '编辑定时任务' : '新增定时任务';
@@ -1896,11 +1898,13 @@ function renderScheduleMode() {
 function renderScheduleTaskType() {
   const sel = $('#schedule-task-type');
   sel.innerHTML = '';
-  for (const [key, s] of Object.entries(state.quickSchemas || {})) {
-    if (!s.label || s.viaTool) continue;
-    sel.append(elt('option', { value: key }, s.label));
+  for (const t of state.types || []) {
+    sel.append(elt('option', { value: t.type, title: t.desc }, t.label));
   }
-  sel.value = state.scheduleForm.taskType || 'fight';
+  if (![...sel.options].some((o) => o.value === state.scheduleForm.taskType)) {
+    state.scheduleForm.taskType = 'Fight';
+  }
+  sel.value = state.scheduleForm.taskType;
   sel.onchange = () => {
     state.scheduleForm.taskType = sel.value;
     state.scheduleForm.taskParams = {};
@@ -1912,50 +1916,16 @@ function renderScheduleTaskType() {
 function renderScheduleTaskFields() {
   const box = $('#schedule-task-fields');
   box.innerHTML = '';
-  const schema = (state.quickSchemas || {})[state.scheduleForm.taskType];
-  if (!schema) return;
-  for (const f of schema.fields) {
-    if (f.name === 'addr') continue;
-    const wrap = elt('div', { class: 'field' }, [elt('label', {}, f.label)]);
-    const input = buildQuickInput(f, state.scheduleForm.taskType);
-    if (f.name === 'theme' && input) {
-      const select = input.tagName === 'SELECT' ? input : (input.querySelector ? input.querySelector('select') : null);
-      if (select) select.addEventListener('change', () => {
-        loadRoguelikeData(select.value);
-        for (const n of ['mode', 'squad', 'coreChar', 'difficulty']) {
-          const el = box.querySelector(`[data-name="${n}"]`);
-          if (el) { el.value = ''; delete el.dataset.raw; }
-        }
-      });
-    }
-    wrap.append(input);
-    if (f.description) wrap.append(elt('div', { class: 'desc' }, f.description));
-    box.append(wrap);
-  }
-  if (state.scheduleForm.taskType === 'copilot') {
-    const urisEl = box.querySelector('[data-name="uris"]');
-    const listBox = elt('div', { class: 'copilot-list', id: 'schedule-copilot-list' });
-    box.append(elt('div', { class: 'field' }, [elt('label', {}, '作业列表（输入代码后自动显示，勾选要执行的作业）'), listBox]));
-    const checkedUris = (state.scheduleForm.taskParams.uris || '').split(/\n/).filter(Boolean);
-    const doPreview = () => loadCopilotPreview(urisEl.value, listBox, { checkedUris: checkedUris.length ? checkedUris : null, persist: false });
-    urisEl.addEventListener('change', doPreview);
-    urisEl.addEventListener('blur', doPreview);
-    const jobs = loadCopilotJobs();
-    if (jobs && jobs.length) renderCopilotList(listBox, { name: '', items: jobs }, { checkedUris: checkedUris.length ? checkedUris : null, persist: false });
-    if (urisEl.value.trim()) doPreview();
-  }
-  applyScheduleTaskValues();
-}
-
-function applyScheduleTaskValues() {
-  const params = state.scheduleForm.taskParams || {};
-  for (const el of $$('[data-name]', $('#schedule-task-fields'))) {
-    const v = params[el.dataset.name];
-    if (v === undefined) continue;
-    if (el.type === 'checkbox') el.checked = !!v;
-    else if (el.dataset.raw !== undefined) el.dataset.raw = String(v);
-    else el.value = String(v);
-  }
+  const meta = state.typeMap && state.typeMap[state.scheduleForm.taskType];
+  if (!meta) return;
+  const item = { type: meta.type, name: '单任务', params: state.scheduleForm.taskParams };
+  state.scheduleForm.taskItem = item;
+  const basic = meta.fields.filter((f) => !f.group || f.group === 'basic');
+  const advanced = meta.fields.filter((f) => f.group === 'advanced');
+  const groups = elt('div', { class: 'settings-groups' });
+  groups.append(fieldsGroup('常规设置', basic, item, false, { silent: true, idPrefix: 'sched-' }));
+  if (advanced.length) groups.append(fieldsGroup('高级设置', advanced, item, true, { silent: true, idPrefix: 'sched-' }));
+  box.append(groups);
 }
 
 function renderWeekdayPicker() {
@@ -2010,19 +1980,10 @@ async function saveSchedule() {
   let task = null;
   if (mode === 'single') {
     const type = $('#schedule-task-type').value;
-    const params = {};
-    for (const el of $$('[data-name]', $('#schedule-task-fields'))) {
-      if (el.type === 'checkbox') { if (el.checked) params[el.dataset.name] = true; }
-      else if (el.dataset.raw !== undefined) { if (el.dataset.raw !== '') params[el.dataset.name] = el.dataset.raw; }
-      else if (el.value !== '') params[el.dataset.name] = el.value;
-    }
     if (!type) { toast('请选择任务类型', 'error'); return; }
-    const listBox = $('#schedule-copilot-list');
-    if (type === 'copilot' && listBox) {
-      const checked = [...listBox.querySelectorAll('input[type=checkbox]:checked')].map((c) => c.dataset.uri);
-      if (checked.length) params.uris = checked.join('\n');
-    }
-    task = { type, params };
+    const item = state.scheduleForm.taskItem;
+    if (!item || !item.type) { toast('请先配置任务参数', 'error'); return; }
+    task = { type, params: { ...(item.params || {}) } };
   }
   const body = {
     name,

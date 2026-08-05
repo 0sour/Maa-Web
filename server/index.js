@@ -993,7 +993,7 @@ app.get('/api/schedules', async (_req, res) => {
 app.post('/api/schedules', async (req, res) => {
   try {
     const body = req.body || {};
-    if (body.task && !TASK_SCHEMAS[body.task.type]) {
+    if (body.task && !BY_TYPE[body.task.type]) {
       return res.status(400).json({ error: `未知任务类型: ${body.task.type}` });
     }
     const item = await scheduler.add(body);
@@ -1006,7 +1006,7 @@ app.post('/api/schedules', async (req, res) => {
 app.post('/api/schedules/:id', async (req, res) => {
   try {
     const body = req.body || {};
-    if (body.task && !TASK_SCHEMAS[body.task.type]) {
+    if (body.task && !BY_TYPE[body.task.type]) {
       return res.status(400).json({ error: `未知任务类型: ${body.task.type}` });
     }
     const item = await scheduler.update(req.params.id, body);
@@ -1276,9 +1276,14 @@ const server = app.listen(PORT, '0.0.0.0', () => {
       return r.id;
     },
     runSingleTask: async ({ type, params, name, postAction }) => {
-      if (!TASK_SCHEMAS[type]) throw new Error(`未知任务类型: ${type}`);
-      const command = buildArgs(type, params || {}, {});
-      const { id } = runner.start({ command, name });
+      if (!BY_TYPE[type]) throw new Error(`未知任务类型: ${type}`);
+      const d = await configDirs();
+      if (!d.config) throw new Error('配置目录不可用');
+      const tasksDir = path.join(d.config, 'tasks');
+      await fsp.mkdir(tasksDir, { recursive: true });
+      const content = generateTaskFile([{ type, params: params || {}, name }]);
+      await fsp.writeFile(path.join(tasksDir, 'maa-web-single.json'), content, 'utf8');
+      const { id } = runner.start({ command: ['run', 'maa-web-single'], name });
       if (postAction) pendingPostActions[id] = postAction;
       return id;
     },
