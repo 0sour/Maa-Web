@@ -401,6 +401,91 @@ function fieldsGroup(title, fields, item, advanced = false) {
   return box;
 }
 
+/* 材料选择器（掉落停止条件）：搜索选择材料 + 数量，值格式 "id=count,id=count" */
+function buildDropsPicker(initial, onValue) {
+  const entries = [];
+  const init = {};
+  if (typeof initial === 'string') {
+    for (const part of initial.split(',').map((s) => s.trim()).filter(Boolean)) {
+      const [id, count] = part.split('=');
+      if (id) init[id.trim()] = Number(count) || 0;
+    }
+  } else if (initial && typeof initial === 'object') {
+    for (const [k, v] of Object.entries(initial)) init[k] = Number(v) || 0;
+  }
+  for (const [id, count] of Object.entries(init)) entries.push({ id, name: id, count });
+
+  const box = elt('div', { class: 'drops-picker' });
+  const chips = elt('div', { class: 'drops-chips' });
+  const searchRow = elt('div', { class: 'drops-search-row' });
+  const search = elt('input', { type: 'text', class: 'drops-search', placeholder: '搜索材料（如 固源岩 / 30012）' });
+  const suggest = elt('div', { class: 'drops-suggest' });
+  searchRow.append(search, suggest);
+  box.append(chips, searchRow);
+
+  let timer = null;
+  const sync = () => {
+    onValue(entries.map((e) => `${e.id}=${Math.max(1, e.count || 1)}`).join(','));
+  };
+  const render = () => {
+    chips.replaceChildren();
+    if (!entries.length) chips.append(elt('span', { class: 'desc' }, '（未设置：不限制掉落）'));
+    for (const e of entries) {
+      const num = elt('input', { type: 'number', min: '1', step: '1', value: String(Math.max(1, e.count || 1)) });
+      num.addEventListener('change', () => {
+        e.count = Math.max(1, Math.floor(Number(num.value) || 1));
+        num.value = String(e.count);
+        sync();
+      });
+      const del = elt('button', { class: 'chip-x', type: 'button', title: '移除', onclick: () => { entries.splice(entries.indexOf(e), 1); render(); sync(); } }, '×');
+      const chip = elt('span', { class: 'chip' }, e.name);
+      chip.append(num, del);
+      chips.append(chip);
+    }
+  };
+
+  /* 已有 ID 补全中文名 */
+  const lookupNames = async () => {
+    for (const e of entries) {
+      if (e.name !== e.id) continue;
+      try {
+        const res = await api('/api/items?q=' + encodeURIComponent(e.id) + '&limit=5');
+        const hit = (res.items || []).find((i) => String(i.id) === e.id);
+        if (hit) e.name = hit.name;
+      } catch { /* 保持 ID 显示 */ }
+    }
+    render();
+  };
+
+  search.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = search.value.trim();
+    if (!q) { suggest.replaceChildren(); return; }
+    timer = setTimeout(async () => {
+      try {
+        const res = await api('/api/items?q=' + encodeURIComponent(q) + '&limit=20');
+        const list = res.items || [];
+        suggest.replaceChildren();
+        if (!list.length) suggest.append(elt('div', { class: 'desc' }, '无匹配材料'));
+        for (const it of list) {
+          const row = elt('div', { class: 'drops-item', tabindex: '0' }, `${it.name} (${it.id})`);
+          row.addEventListener('click', () => {
+            if (entries.some((e) => e.id === it.id)) { search.value = ''; suggest.replaceChildren(); return; }
+            entries.push({ id: it.id, name: it.name, count: 1 });
+            render(); sync(); search.value = ''; suggest.replaceChildren();
+          });
+          suggest.append(row);
+        }
+      } catch { suggest.replaceChildren(); }
+    }, 250);
+  });
+  search.addEventListener('blur', () => setTimeout(() => suggest.replaceChildren(), 150));
+
+  render();
+  if (entries.length) lookupNames();
+  return box;
+}
+
 function fieldInput(f, item) {
   // 队列抄作业：原始 rows 表单字段隐藏，统一用直观的作业列表区（值由导入功能维护）
   if (item.type === 'Copilot' && f.name === 'copilot_list') {
@@ -501,9 +586,10 @@ function fieldInput(f, item) {
       input = box;
       break;
     }
-    case 'multi':
-    case 'multiNum':
-    case 'drops':
+    case 'drops': {
+      input = buildDropsPicker(cur, (v) => setParam(item, f, v));
+      break;
+    }
     case 'strNumMap': {
       const val = Array.isArray(cur) ? cur.join(',') : (cur !== undefined && typeof cur === 'object' ? Object.entries(cur).map(([k, v]) => `${k}=${v}`).join(',') : (cur !== undefined ? String(cur) : ''));
       input = elt('input', { type: 'text', placeholder: f.placeholder || '', value: val });
@@ -924,6 +1010,11 @@ function buildQuickInput(f) {
     }
     if (f.defaultValue) sel.value = f.defaultValue;
     return sel;
+  }
+  if (f.name === 'drops') {
+    const el = buildDropsPicker('', (v) => { el.dataset.raw = v; });
+    el.dataset.name = f.name;
+    return el;
   }
   if (f.type === 'checkbox') return elt('input', { type: 'checkbox', 'data-name': f.name });
   if (f.type === 'textarea') return elt('textarea', { 'data-name': f.name, placeholder: f.placeholder || '' });

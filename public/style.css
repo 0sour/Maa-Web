@@ -326,6 +326,24 @@ textarea.editor {
 }
 .chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
+/* ---------- drops picker (材料选择器) ---------- */
+.drops-picker { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.drops-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.drops-chips .chip { cursor: default; }
+.drops-chips .chip input[type=number] { width: 56px; padding: 1px 4px; font-size: 12px; }
+.chip-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+.chip-x:hover { color: #e5484d; }
+.drops-search-row { position: relative; }
+.drops-search { width: 100%; }
+.drops-suggest {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  max-height: 220px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+.drops-item { padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.drops-item:hover { background: var(--accent-soft); }
+.drops-suggest .desc { padding: 8px 10px; }
+
 /* ---------- task form (quick) ---------- */
 .task-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .task-form .field.full { grid-column: 1 / -1; }

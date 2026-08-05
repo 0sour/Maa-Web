@@ -131,4 +131,20 @@ async function list(q = '', limit = 50) {
   return { items, total: matched.length };
 }
 
-module.exports = { init, today, list };
+/* 材料搜索（item_index.json 名称/ID 匹配），供掉落停止条件选择器使用 */
+async function items(q = '', limit = 100) {
+  await ensureLoaded();
+  const query = String(q || '').trim().toLowerCase();
+  let out = [];
+  if (itemNames) {
+    for (const [id, name] of Object.entries(itemNames)) {
+      if (String(name).toLowerCase().includes(query) || String(id).toLowerCase().includes(query)) {
+        out.push({ id, name });
+      }
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  }
+  return out.slice(0, Math.max(1, Math.min(500, Number(limit) || 100)));
+}
+
+module.exports = { init, today, list, items };

@@ -1308,6 +1308,16 @@ app.get('/api/stages/list', async (req, res) => {
   }
 });
 
+app.get('/api/items', async (req, res) => {
+  try {
+    const q = String(req.query.q || '');
+    const limit = Number(req.query.limit) || 100;
+    res.json({ items: await stages.items(q, limit) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 /* ---------- update check ---------- */
 app.get('/api/update/check', async (req, res) => {
   try {
