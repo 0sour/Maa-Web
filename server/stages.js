@@ -90,9 +90,16 @@ async function activityStages() {
   }
 }
 
+/* 游戏日边界：每日凌晨 4 点刷新，4 点前视为前一天 */
+function gameDayWeekday() {
+  const now = new Date();
+  const day = now.getHours() < 4 ? new Date(now.getTime() - 86400000) : now;
+  return ((day.getDay() + 6) % 7) + 1;
+}
+
 async function today() {
   await ensureLoaded();
-  const weekDay = ((new Date().getDay() + 6) % 7) + 1;
+  const weekDay = gameDayWeekday();
   const resource = (WEEK_RESOURCE[weekDay] || []).map((code) => stageInfo(code)).filter(Boolean);
   const activity = await activityStages();
   const activityWithDrops = activity.map((a) => {

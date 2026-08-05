@@ -420,7 +420,13 @@ function fieldInput(f, item) {
       return files.map((fp) => ({ value: fp, label: fp.replace(/^.*[/\\]/, '') }));
     });
     const codeInput = elt('input', { type: 'text', placeholder: '作业代码导入，如 12345 / maa://12345 / 作业集' });
-    row.append(picker, codeInput);
+    const uploadBtn = elt('button', { class: 'btn sm', type: 'button', onclick: () => {
+      uploadCopilotFile((res) => {
+        renderQueueCopilotList(listBox, res.items || [], item);
+        toast(`已上传 ${res.items.length} 个作业，勾选即添加`, 'success');
+      });
+    } }, '上传作业文件');
+    row.append(picker, codeInput, uploadBtn);
     wrap.append(row);
     if (f.hint) wrap.append(elt('div', { class: 'desc' }, f.hint));
     // 作业列表区（自动预览 + 勾选即生效：勾选自动保存，取消自动移除）
@@ -794,9 +800,31 @@ function renderQuickForm() {
       input.dispatchEvent(new Event('change', { bubbles: true }));
       toast(`已填入作业代码：${uri}，正在获取作业…`, 'success');
     } }, '填入作业');
+    const uploadBtn = elt('button', { class: 'btn sm', type: 'button', onclick: () => {
+      uploadCopilotFile((res) => {
+        const input = form.querySelector('[data-name="uris"]');
+        if (!input) return;
+        const uris = res.items.map((it) => it.uri).join('\n');
+        input.value = input.value.trim() ? `${input.value.trim()}\n${uris}` : uris;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    } }, '上传作业文件');
     form.append(elt('div', { class: 'field full' }, [
-      elt('label', {}, '作业代码导入（可选，作业站代码直达）'),
-      elt('div', { class: 'toolbar', style: 'gap:8px' }, [codeInput, applyBtn]),
+      elt('label', {}, '作业代码导入 / 上传作业文件（可选）'),
+      elt('div', { class: 'toolbar', style: 'gap:8px' }, [codeInput, applyBtn, uploadBtn]),
+    ]));
+  }
+  if (state.currentType === 'ssscopilot' || state.currentType === 'paradoxcopilot') {
+    const uploadBtn = elt('button', { class: 'btn sm', type: 'button', onclick: () => {
+      uploadCopilotFile((res) => {
+        const input = form.querySelector('[data-name="uri"]');
+        if (!input) return toast('未找到作业路径输入框', 'error');
+        input.value = res.items.map((it) => it.uri).join('\n');
+      });
+    } }, '上传作业文件');
+    form.append(elt('div', { class: 'field full' }, [
+      elt('label', {}, '上传作业文件（上传到服务器后自动填入路径）'),
+      elt('div', { class: 'toolbar', style: 'gap:8px' }, [uploadBtn]),
     ]));
   }
   const adv = new Set(schema.advancedFields || []);
@@ -1149,8 +1177,28 @@ async function loadRoguelikeData(theme) {
 }
 
 /* 队列侧抄作业：作业列表渲染——勾选即保存到 copilot_list，取消即移除 */
-function copilotUriMap() {
-  try { return JSON.parse(localStorage.getItem('maa-web-copilot-uri-map') || '{}'); } catch { return {}; }
+/* 选择本地作业 JSON 文件上传到服务器，onDone 回调接收 {path, items} */
+function uploadCopilotFile(onDone) {
+  const input = elt('input', { type: 'file', accept: '.json,application/json', style: 'display:none' });
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const res = await api('/api/copilot/upload', { method: 'POST', body: JSON.stringify({ content: text }) });
+      toast(`已上传作业：${(res.items || []).map((it) => it.stage).join('、') || file.name}`, 'success');
+      if (onDone) onDone(res);
+    } catch (err) {
+      toast(`上传失败：${err.message}`, 'error');
+    } finally {
+      input.remove();
+    }
+  });
+  document.body.append(input);
+  input.click();
+}
+
+function copilotUriMap() {  try { return JSON.parse(localStorage.getItem('maa-web-copilot-uri-map') || '{}'); } catch { return {}; }
 }
 function saveCopilotUriMap(map) {
   try { localStorage.setItem('maa-web-copilot-uri-map', JSON.stringify(map)); } catch { /* ignore */ }

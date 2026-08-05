@@ -1271,6 +1271,16 @@ app.post('/api/copilot/download', async (req, res) => {
   }
 });
 
+app.post('/api/copilot/upload', async (req, res) => {
+  try {
+    const { content } = req.body || {};
+    if (!content) return res.status(400).json({ error: '未收到作业内容' });
+    res.json(await copilot.upload(content));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 /* ---------- roguelike data ---------- */
 app.get('/api/roguelike', async (req, res) => {
   try {

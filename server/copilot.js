@@ -189,4 +189,35 @@ async function fetchRaw(id) {
   return JSON.stringify(content);
 }
 
-module.exports = { init, preview, parseCode, listFiles, download };
+/* 上传本地作业 JSON 文件：校验并保存到配置 copilot 目录，返回 {path, items} */
+async function upload(content) {
+  if (!content || !String(content).trim()) throw new Error('作业内容为空');
+  let j;
+  try {
+    j = typeof content === 'string' ? JSON.parse(content) : content;
+  } catch {
+    throw new Error('作业文件不是有效的 JSON');
+  }
+  const tasks = Array.isArray(j.tasks) ? j.tasks : [j];
+  if (!tasks.length || !tasks.some((t) => t && t.stage_name && Array.isArray(t.actions))) {
+    throw new Error('作业文件格式无效（需要 stage_name 与 actions 字段）');
+  }
+  const saveDir = path.join(configDir, 'copilot');
+  await fsp.mkdir(saveDir, { recursive: true });
+  const file = path.join(saveDir, `upload-${Date.now()}.json`);
+  await fsp.writeFile(file, JSON.stringify(j, null, 2), 'utf8');
+  await ensureStageMap();
+  const items = tasks.filter((t) => t && t.stage_name).map((t) => ({
+    id: 0,
+    uri: file,
+    stage: stageCode(t.stage_name) || t.stage_name,
+    difficulty: t.difficulty || '',
+    author: '',
+    views: 0,
+    description: (t.documentation && (t.documentation.title || t.documentation.details || '')) || '',
+    minVersion: t.minimum_required || '',
+  }));
+  return { path: file, name: j.name || '', description: j.description || '', items };
+}
+
+module.exports = { init, preview, parseCode, listFiles, download, upload };
