@@ -16,6 +16,7 @@ const update = require('./update');
 const stages = require('./stages');
 const roguelike = require('./roguelike');
 const copilot = require('./copilot');
+const minigames = require('./minigames');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -1072,6 +1073,33 @@ app.post('/api/run', async (req, res) => {
   try {
     const { type, params = {}, common = {}, logLevel } = req.body || {};
     if (!TASK_SCHEMAS[type]) return res.status(400).json({ error: `未知任务类型: ${type}` });
+    if (type === 'minigame') {
+      const entry = String(params.entry || '').trim();
+      if (!entry) return res.status(400).json({ error: '请选择小游戏' });
+      const mg = await minigames.get(entry);
+      if (!mg) return res.status(400).json({ error: `小游戏不存在（资源可能已更新）：${entry}` });
+      const d = await configDirs();
+      const tasksDir = path.join(d.config, 'tasks');
+      await fsp.mkdir(tasksDir, { recursive: true });
+      await fsp.writeFile(
+        path.join(tasksDir, 'maa-web-minigame.json'),
+        JSON.stringify({
+          tasks: [{ name: `小游戏: ${mg.doc || entry}`, type: 'Custom', params: { task_names: [entry] } }],
+        }, null, 2),
+        'utf8'
+      );
+      const command = ['run', 'maa-web-minigame'];
+      if (params.addr) command.push('-a', String(params.addr));
+      if (params.profile) command.push('-p', String(params.profile));
+      if (params.userResource) command.push('--user-resource');
+      for (const [idx, f] of Object.entries(COMMON_OPTIONS)) {
+        if (common[idx] === true) command.push(f.flag);
+      }
+      const env = {};
+      if (logLevel) env.MAA_LOG = logLevel;
+      const { id } = runner.start({ command, name: `小游戏: ${mg.doc || entry}`, env });
+      return res.json({ ok: true, id, entry: mg.name });
+    }
     const command = buildArgs(type, params, common);
     const env = {};
     if (logLevel) env.MAA_LOG = logLevel;
@@ -1231,7 +1259,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     if (auth.enabled()) console.log('[maa-web] 访问令牌已启用');
   });
   loadUpdateProxy();
-  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); copilot.init(d.data, d.config); });
+  configDirs().then((d) => { stages.init(d.data); roguelike.init(d.data); copilot.init(d.data, d.config); minigames.init(d.data); });
   scheduler.init({
     getConfigDir: async () => (await configDirs()).config,
     applyConfig,
@@ -1313,6 +1341,14 @@ app.get('/api/items', async (req, res) => {
     const q = String(req.query.q || '');
     const limit = Number(req.query.limit) || 100;
     res.json({ items: await stages.items(q, limit) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/minigames', async (_req, res) => {
+  try {
+    res.json({ items: await minigames.list() });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -74,6 +74,7 @@
 - [x] **N 剩余汉化收尾**（2026-08-06 完成）：boolMap 选项（热水壶/护盾/源石锭/…）本已汉化；补上最后残留：Recruit「服务器」选项 `['','CN','US','JP','KR']` → `[['','默认'],['CN','国服'],…]`（server/dailyTaskTypes.js）；全部 select/chips/boolMap 选项均已为 `[值, 标签]` 中文对
 - [x] **K 设备状态页整合**（2026-08-06 完成）：设备页新增「实例状态」卡片——连接状态（点/设备名/序列号/触控/adb）+ 实时截图缩略（5s 轮询刷新）+ 任务运行状态 + 操作（远程控制/全屏画面/连接配置），openScrcpyWindow 抽为公共函数
 - [x] **L 快速任务扩展**（2026-08-06 判定不可行）：maa-cli 0.7.5 tool 任务不支持 `Gacha`/`MiniGame` 类型（`unknown variant`），无法实现抽卡十连/小游戏刷取；等 maa-cli 后续版本支持后再评估
+- [x] **X 小游戏（牛杂）支持**（2026-08-06 完成）：调研确认 MAA 客户端「小工具」页的牛杂（MiniGame）本质是**资源任务链**，经 core `CustomTask`（`task_names` 任意任务名 + SecretFront 特化）执行，Gacha（牛牛抽卡）走 core 专用 C API `AsstStartGacha`（cli 无入口），Peep（牛牛监控）为 GUI 投屏（ws-scrcpy 已等价）；实现=**不硬编码、动态扫描** `resource/tasks/tasks.json`（`*@Store@Begin`/`Store@Begin`/`MiniGame@*` 入口，含 doc 中文名与 商店/小游戏 分类，mtime 检测随 `maa update` **自动增删**）→ `/api/minigames`；快速任务新增「小游戏」卡片（动态选择器）+ `/api/run` minigame 分支动态生成 `tasks/maa-web-minigame.json`（type=Custom, task_names=[入口]）后 `maa run` 执行；当前资源可用入口：`Store@Begin`（绿票、黄票商店）
 - [x] **M ws-scrcpy 集成优化**（2026-08-06 完成）：见专项
 
 ### P1 ws-scrcpy 远程控制优化（专项）

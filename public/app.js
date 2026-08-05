@@ -825,6 +825,10 @@ async function loadQuickSchemas() {
   state.quickSchemas = data.schemas;
   renderQuickCards();
   await loadDeviceOptions();
+  try {
+    const mg = await api('/api/minigames');
+    state.minigameEntries = mg.items || [];
+  } catch { state.minigameEntries = []; }
   const current = state.currentType;
   if (state.quickSchemas[current]) renderQuickForm();
 }
@@ -999,6 +1003,11 @@ function buildQuickInput(f) {
     return buildPicker('', { 'data-name': f.name, placeholder: '选择模式' }, null, () => {
       const d = state.roguelikeData || {};
       return (d.modes || []).map((x) => ({ value: x.value, label: x.label }));
+    });
+  }
+  if (f.type === 'minigameEntry') {
+    return buildPicker('', { 'data-name': f.name, placeholder: '选择小游戏（随资源更新自动增删）' }, null, () => {
+      return (state.minigameEntries || []).map((m) => ({ value: m.name, label: `${m.doc || m.name}（${m.category}）` }));
     });
   }
   if (f.type === 'select' || f.type === 'customTasks') {

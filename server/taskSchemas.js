@@ -502,6 +502,21 @@ const TASK_SCHEMAS = {
       ...COMMON_FIELDS,
     ],
   },
+  minigame: {
+    category: '其他',
+    advancedFields: [],
+    label: '小游戏',
+    desc: '执行游戏内小游戏/商店自动化（入口随 MAA 资源更新自动增删）',
+    fields: [
+      {
+        name: 'entry',
+        label: '小游戏',
+        type: 'minigameEntry',
+        placeholder: '选择小游戏',
+      },
+      ...COMMON_FIELDS,
+    ],
+  },
 };
 
 const COMMON_OPTIONS = {
