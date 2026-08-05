@@ -975,7 +975,8 @@ function renderQuickForm() {
   }
 }
 
-function buildQuickInput(f) {
+function buildQuickInput(f, ctxType) {
+  const rt = ctxType || state.currentType;
   if (f.name === 'addr') {
     const sel = elt('select', { 'data-name': f.name, title: '留空则使用「设备连接」页配置的全局设备' });
     for (const o of state.deviceOptions) sel.append(elt('option', { value: o.value }, o.label));
@@ -993,13 +994,13 @@ function buildQuickInput(f) {
       return (d.operators || []).map((o) => ({ value: o, label: o }));
     });
   }
-  if (f.name === 'difficulty' && state.currentType === 'roguelike') {
+  if (f.name === 'difficulty' && rt === 'roguelike') {
     return buildPicker('', { 'data-name': f.name, placeholder: '选择难度' }, null, () => {
       const d = state.roguelikeData || {};
       return (d.difficulties || []).map((x) => ({ value: x.value, label: x.label }));
     });
   }
-  if (f.name === 'mode' && state.currentType === 'roguelike') {
+  if (f.name === 'mode' && rt === 'roguelike') {
     return buildPicker('', { 'data-name': f.name, placeholder: '选择模式' }, null, () => {
       const d = state.roguelikeData || {};
       return (d.modes || []).map((x) => ({ value: x.value, label: x.label }));
@@ -1384,8 +1385,8 @@ function copilotCheckedState() {
 }
 
 /* 抄作业：解析作业并展示列表（作业集自动展开） */
-async function loadCopilotPreview(value) {
-  const box = $('#quick-copilot-list');
+async function loadCopilotPreview(value, box, opts) {
+  if (!box) box = $('#quick-copilot-list');
   if (!box) return;
   const first = String(value || '').trim().split(/\n/)[0];
   if (!first) { box.innerHTML = ''; return; }
@@ -1393,7 +1394,7 @@ async function loadCopilotPreview(value) {
   try {
     const res = await api('/api/copilot/preview', { method: 'POST', body: JSON.stringify({ input: first }) });
     saveCopilotJobs(res.items || []);
-    renderCopilotList(box, res);
+    renderCopilotList(box, res, opts);
   } catch (err) {
     box.innerHTML = '';
     const errDiv = elt('div', { class: 'copilot-err' }, `作业获取失败：${err.message}`);
@@ -1401,19 +1402,21 @@ async function loadCopilotPreview(value) {
   }
 }
 
-function renderCopilotList(box, data) {
+function renderCopilotList(box, data, opts) {
+  opts = opts || {};
   const items = data.items || [];
   box.innerHTML = '';
   if (!items.length) {
     box.append(elt('div', { class: 'muted', style: 'padding:8px' }, '未解析到作业'));
     return;
   }
-  const savedChecked = copilotCheckedState();
+  const savedChecked = Array.isArray(opts.checkedUris) ? opts.checkedUris : copilotCheckedState();
+  const persist = opts.persist !== false;
   const list = elt('div', { class: 'copilot-list-inner' });
   const setAll = (v) => list.querySelectorAll('input[type=checkbox]').forEach((c) => { c.checked = v; saveChecked(); });
   const saveChecked = () => {
     const sel = [...list.querySelectorAll('input[type=checkbox]:checked')].map((c) => c.dataset.uri);
-    try { localStorage.setItem('maa-web-copilot-checked', JSON.stringify(sel)); } catch { /* ignore */ }
+    if (persist) { try { localStorage.setItem('maa-web-copilot-checked', JSON.stringify(sel)); } catch { /* ignore */ } }
   };
   const head = elt('div', { class: 'copilot-list-head' }, [
     elt('span', { class: 'copilot-count' }, `共 ${items.length} 项${data.name ? `（${data.name}）` : ''}`),
@@ -1914,8 +1917,32 @@ function renderScheduleTaskFields() {
   for (const f of schema.fields) {
     if (f.name === 'addr') continue;
     const wrap = elt('div', { class: 'field' }, [elt('label', {}, f.label)]);
-    wrap.append(buildQuickInput(f));
+    const input = buildQuickInput(f, state.scheduleForm.taskType);
+    if (f.name === 'theme' && input) {
+      const select = input.tagName === 'SELECT' ? input : (input.querySelector ? input.querySelector('select') : null);
+      if (select) select.addEventListener('change', () => {
+        loadRoguelikeData(select.value);
+        for (const n of ['mode', 'squad', 'coreChar', 'difficulty']) {
+          const el = box.querySelector(`[data-name="${n}"]`);
+          if (el) { el.value = ''; delete el.dataset.raw; }
+        }
+      });
+    }
+    wrap.append(input);
+    if (f.description) wrap.append(elt('div', { class: 'desc' }, f.description));
     box.append(wrap);
+  }
+  if (state.scheduleForm.taskType === 'copilot') {
+    const urisEl = box.querySelector('[data-name="uris"]');
+    const listBox = elt('div', { class: 'copilot-list', id: 'schedule-copilot-list' });
+    box.append(elt('div', { class: 'field' }, [elt('label', {}, '作业列表（输入代码后自动显示，勾选要执行的作业）'), listBox]));
+    const checkedUris = (state.scheduleForm.taskParams.uris || '').split(/\n/).filter(Boolean);
+    const doPreview = () => loadCopilotPreview(urisEl.value, listBox, { checkedUris: checkedUris.length ? checkedUris : null, persist: false });
+    urisEl.addEventListener('change', doPreview);
+    urisEl.addEventListener('blur', doPreview);
+    const jobs = loadCopilotJobs();
+    if (jobs && jobs.length) renderCopilotList(listBox, { name: '', items: jobs }, { checkedUris: checkedUris.length ? checkedUris : null, persist: false });
+    if (urisEl.value.trim()) doPreview();
   }
   applyScheduleTaskValues();
 }
@@ -1990,6 +2017,11 @@ async function saveSchedule() {
       else if (el.value !== '') params[el.dataset.name] = el.value;
     }
     if (!type) { toast('请选择任务类型', 'error'); return; }
+    const listBox = $('#schedule-copilot-list');
+    if (type === 'copilot' && listBox) {
+      const checked = [...listBox.querySelectorAll('input[type=checkbox]:checked')].map((c) => c.dataset.uri);
+      if (checked.length) params.uris = checked.join('\n');
+    }
     task = { type, params };
   }
   const body = {
