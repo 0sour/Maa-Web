@@ -2,3 +2,7 @@ node_modules/
 data/
 *.log
 .DS_Store
+
+# 本地工具配置（不提交）
+.aionrs/
+.opencode/
