@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+**/node_modules/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+ENV/
+
+# Frontend build outputs
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker volumes (bind mounts optional dirs)
+data/
+cache/
+media/
+
+# Coverage / reports
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+*.lcov
+
+# MAA 客户端源码克隆（440M，仅开发参考，不入库）
+参考/
+
+# 浏览器自动化测试截图
+captures/
+
+# AI 工具工作目录（ZCode/OpenCode 本地状态，不入库）
+.zcode/
+.opencode/
+
+# 会话记录（含开发内部细节，仅本地，不入库）
+docs/session-*.md

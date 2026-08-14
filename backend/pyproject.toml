@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=69.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maaweb-backend"
+version = "0.1.0"
+description = "Maa-Web FastAPI backend — Docker-deployable MAA Web UI for NAS"
+readme = "../README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "Maa-Web Contributors" }]
+dependencies = [
+    # Web framework (+ async)
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    # uvloop 仅支持 Unix（Docker/NAS 用）；Windows 下 uvicorn 回退 asyncio
+    "uvloop>=0.20,<1.0; sys_platform != 'win32'",
+    # JSON serializer (default_response_class=ORJSONResponse)
+    "orjson>=3.10,<4.0",
+    # Pydantic settings (v2)
+    "pydantic>=2.9,<3.0",
+    "pydantic-settings>=2.5,<3.0",
+    # Database (MVP: SQLite via SQLAlchemy, async driver)
+    "sqlalchemy>=2.0,<3.0",
+    "aiosqlite>=0.20,<1.0",
+    # Auth / security (simple single-user MVP)
+    "python-multipart>=0.0.9,<1.0",
+    "python-jose[cryptography]>=3.3,<4.0",
+    "passlib[bcrypt]>=1.7.4,<2.0",
+    # Structured logging
+    "structlog>=24.4,<25.0",
+    # HTTP client (async, for MAA engine pack download S-07)
+    "httpx>=0.27,<1.0",
+    # ── MAA Asst 核心引擎 ──
+    # 引擎切换（2026-08）后不再依赖 PyPI MaaFw：由 MAA 官方发布包提供 MaaCore
+    # 动态库（ctypes 直调），经 S-07 资源包管理器下载安装。
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9.0",
+    "pytest-asyncio>=0.24,<1.0",
+    "httpx>=0.27,<1.0",
+    "ruff>=0.6,<1.0",
+    "mypy>=1.11,<2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# FastAPI 新版本已内置 Pydantic JSON 序列化，ORJSONResponse 为 deprecated；
+# 项目仍显式指定（历史约束），此处仅静默该弃用警告，不影响测试信号。
+filterwarnings = [
+    "ignore::fastapi.exceptions.FastAPIDeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4"]
+# B008: FastAPI 惯用法（Depends() 作为参数默认值），项目全库遵循该模式。
+# E501: 存量代码行宽 >88，保持一致风格暂不强制 88 列。
+# UP017: 运行环境含 Python 3.10（本地沙箱），datetime.UTC 需 3.11+，保持 timezone.utc。
+ignore = ["B008", "E501", "UP017"]

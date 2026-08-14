@@ -1,0 +1,59 @@
+/* 任务参数表单共享控件样式（各类型表单组件复用，还原 MAA 客户端设置选项形态） */
+.params { padding: 12px 18px 16px; border-top: 1px solid var(--color-border-default); }
+.params .f-title { font-size: var(--font-size-sm); color: var(--color-brand); letter-spacing: 1px; margin-bottom: 6px; }
+.params .f-sec { font-size: var(--font-size-xs); color: var(--color-text-tertiary); letter-spacing: 1px; margin: 10px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-border-default); }
+.params .f-sec:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+.params .f-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--color-border-default); }
+.params .f-row:last-child { border: none; }
+.params .f-label { flex: 1; font-size: var(--font-size-md); color: var(--color-text-secondary); letter-spacing: 0.5px; }
+.params .f-label small { display: block; font-size: var(--font-size-xs); color: var(--color-text-tertiary); letter-spacing: 0.3px; }
+
+.params select, .params .f-text {
+  background: var(--color-bg-subtle); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default); padding: 6px 11px;
+  font-size: var(--font-size-md); outline: none; font-family: inherit;
+}
+.params select:focus, .params .f-text:focus { border-color: var(--color-brand); }
+.params .f-text { width: 140px; }
+.params select { min-width: 110px; }
+
+/* ── 可搜索下拉（SearchSelect）+ 组合行 ─────── */
+.params .f-row > .drop-pick {
+  display: flex; align-items: stretch; gap: 8px;
+  flex: 1; min-width: 0;
+}
+.params .drop-pick .ss { flex: 1; min-width: 0; }
+.params .drop-pick .nf { flex-shrink: 0; }
+.params .drop-err { color: var(--color-danger); font-size: var(--font-size-xs); }
+
+/* ── 提示行（占位/说明） ─────────────── */
+.params .f-tip { font-size: var(--font-size-xs); color: var(--color-text-tertiary); line-height: 1.6; padding: 2px 0; }
+.params .f-tip.warn { color: var(--color-brand, #d8b16a); }
+.params .f-tip.dim { opacity: 0.6; }
+
+/* ── 开关（斜切形制） ─────────────────── */
+.params .f-switch {
+  width: 38px; height: 18px;
+  border: 1px solid var(--color-border-strong); position: relative; cursor: pointer;
+  transition: all var(--motion-duration-normal) var(--motion-easing-standard);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  flex-shrink: 0;
+}
+.params .f-switch.on { background: rgba(216, 177, 106, 0.25); border-color: var(--color-brand-strong); }
+.params .f-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; background: var(--color-border-strong);
+  transition: all var(--motion-duration-normal) var(--motion-easing-standard);
+}
+.params .f-switch.on::after { left: 22px; background: var(--color-brand); }
+
+/* ── 多选（checkbox 组，斜切菱形） ─────── */
+.params .f-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.params .f-check {
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary); padding: 4px 10px; cursor: pointer;
+  font-size: var(--font-size-sm); letter-spacing: 0.3px; user-select: none;
+  transition: all var(--motion-duration-fast) var(--motion-easing-standard);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.params .f-check.on { border-color: var(--color-brand-strong); color: var(--color-brand); background: var(--color-bg-active); }

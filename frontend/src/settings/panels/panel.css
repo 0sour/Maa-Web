@@ -1,0 +1,85 @@
+/* 设置面板共享样式（6 个分组面板复用，方舟主题表单形态） */
+.panel-card { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.card-hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-hd .diamond {
+  width: 12px; height: 12px;
+  border: 1px solid var(--color-brand);
+  transform: rotate(45deg); flex-shrink: 0;
+}
+.card-hd b { font-size: var(--font-size-xl); letter-spacing: var(--font-tracking-wide); }
+.card-hd .sub { font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
+.card-hd .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.f-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--color-border-default); }
+.f-row:last-child { border: none; }
+.f-label { flex: 1; font-size: var(--font-size-md); color: var(--color-text-secondary); letter-spacing: 0.5px; }
+.f-label small { display: block; font-size: var(--font-size-xs); color: var(--color-text-tertiary); letter-spacing: 0.3px; }
+.f-label i { color: var(--color-danger); font-style: normal; }
+.f-col { flex-direction: column; align-items: stretch; gap: 6px; }
+
+.f-ctrl { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.f-ctrl .ds, .f-ctrl .ss, .f-ctrl .ms { min-width: 150px; }
+.f-ctrl input[type='text'], .f-ctrl input[type='number'], .f-ctrl input[type='time'] {
+  background: var(--color-bg-subtle); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  padding: 6px 11px; font-size: var(--font-size-md); outline: none;
+  font-family: var(--font-family-mono); min-width: 150px;
+}
+.f-ctrl input:focus { border-color: var(--color-brand); }
+
+/* 子选项区（主题=自动时的切换依据/时间设定），缩进 + 虚线引导线 */
+.f-sub {
+  margin: 2px 0 2px 22px; padding-left: 14px;
+  border-left: 1px dashed var(--color-border-default);
+}
+/* 子区行内容较宽（经纬度/时间双输入 + 按钮）：label 防压成单字竖排，控件超宽时换行 */
+.f-sub .f-label { min-width: 150px; }
+.f-sub .f-ctrl { flex: 1 1 0; min-width: 0; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+@media (max-width: 720px) {
+  .f-sub .f-row { flex-direction: column; align-items: stretch; }
+  .f-sub .f-ctrl { justify-content: flex-start; }
+}
+
+.f-switch {
+  width: 38px; height: 18px;
+  border: 1px solid var(--color-border-strong); position: relative; cursor: pointer;
+  transition: all var(--motion-duration-normal) var(--motion-easing-standard);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  flex-shrink: 0;
+}
+.f-switch.on { background: rgba(216, 177, 106, 0.25); border-color: var(--color-brand-strong); }
+.f-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; background: var(--color-border-strong);
+  transition: all var(--motion-duration-normal) var(--motion-easing-standard);
+}
+.f-switch.on::after { left: 22px; background: var(--color-brand); }
+
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  letter-spacing: 0.5px;
+  transition: all var(--motion-duration-normal) var(--motion-easing-standard);
+}
+.btn:hover:not(:disabled) { border-color: var(--color-brand-strong); color: var(--color-brand); box-shadow: var(--shadow-glow-sm); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-gold { background: rgba(216, 177, 106, 0.14); border-color: var(--color-brand-strong); color: var(--color-brand); }
+.btn-sm { padding: 5px 12px; font-size: var(--font-size-sm); }
+
+.ok-bar {
+  border: 1px solid var(--color-success);
+  background: rgba(159, 181, 111, 0.12);
+  color: var(--color-success);
+  padding: 10px 16px; font-size: var(--font-size-md); letter-spacing: 0.5px;
+}
+.err-bar {
+  border: 1px solid var(--color-danger);
+  background: rgba(176, 91, 83, 0.12);
+  color: #d48f87;
+  padding: 10px 16px; font-size: var(--font-size-md); letter-spacing: 0.5px;
+}
+.hint { font-size: var(--font-size-xs); color: var(--color-text-tertiary); line-height: 1.6; margin: 0; }
+.hint code { font-family: var(--font-family-mono); color: var(--color-brand); }

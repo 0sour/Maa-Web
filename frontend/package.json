@@ -1,0 +1,32 @@
+{
+  "name": "maaweb-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Maa-Web frontend — Vue 3 + Vite + TypeScript Web UI for NAS",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "vue-tsc --noEmit",
+    "verify": "node scripts/verify-ui.mjs"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "pinia": "^2.2.4",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "playwright": "^1.62.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.9",
+    "vue-tsc": "^2.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

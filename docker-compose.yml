@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────
+#  Maa-Web · docker-compose.yml
+#  3-container deployment: nginx (static + RP) → api (FastAPI + MaaCore)
+#  Tailored for NAS: named volumes, non-root user, ARM64/AMD64 ready
+# ─────────────────────────────────────────────────────────
+
+name: maaweb
+
+services:
+  # ── 1. Reverse proxy + static frontend ──────────────────
+  # NOTE: Build context is repo ROOT so we can COPY frontend/ and build inside
+  #       the multi-stage nginx Dockerfile (Docker COPY can't go above context).
+  nginx:
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    image: maaweb/nginx:${MAAWEB_VERSION:-latest}
+    container_name: maaweb-nginx
+    restart: unless-stopped
+    ports:
+      - "${MAAWEB_EXPOSE_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy   # wait until api is READY, not just started
+    networks:
+      - maaweb-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    security_opt:
+      - no-new-privileges:true
+    read_only: false   # /var/run, /var/cache/nginx need write for proxy temp files
+
+  # ── 2. FastAPI backend + MaaFramework runtime ───────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
+    image: maaweb/api:${MAAWEB_VERSION:-latest}
+    container_name: maaweb-api
+    restart: unless-stopped
+    stop_grace_period: 30s      # match drain contract: allow 30s for SIGTERM
+    expose:
+      - "8000"
+    networks:
+      - maaweb-net
+    environment:
+      - MAAWEB_ENV=production
+      - MAAWEB_LOG_LEVEL=${MAAWEB_LOG_LEVEL:-INFO}
+      - MAAWEB_SECRET_KEY=${MAAWEB_SECRET_KEY:-auto-generate-on-start}
+      # 本地时区（日志按天归档、定时执行、主题日出日落均依赖）
+      - TZ=${TZ:-Asia/Shanghai}
+      - DATABASE_URL=sqlite:////data/config/maaweb.db
+      - MAA_RESOURCE_DIR=/data/cache/maa-resource
+      # 引擎包平台（ctypes 直调 MaaCore 官方发布包）：NAS ARM 默认 linux-aarch64，
+      # AMD64 NAS 在 .env 里设 MAAWEB_RESOURCE_PLATFORM=linux-x86_64
+      - MAAWEB_RESOURCE_PLATFORM=${MAAWEB_RESOURCE_PLATFORM:-linux-aarch64}
+      # 容器内 adb（backend Dockerfile 安装）；设备接入用网络 ADB（adb connect IP:5555）
+      - MAAWEB_ADB_PATH=/usr/bin/adb
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - maaweb-config:/data/config      # SQLite DB + user settings
+      - maaweb-logs:/data/logs          # task run logs
+      - maaweb-cache:/data/cache        # MaaCore engine pack + resources
+      - maaweb-media:/data/media        # screenshots / recordings
+    user: "1000:1000"                   # UID/GID 1000 aligns with common NAS users
+    healthcheck:
+      # Readiness check: startup ok AND no deadlock AND enough free memory
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys\ntry:\n    r=urllib.request.urlopen('http://127.0.0.1:8000/healthz/ready', timeout=3)\n    sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 60s               # engine first resource load may be slow
+      # start_interval available since compose v2.21, fallback to interval-based probing
+    deploy:
+      resources:
+        limits:
+          cpus: '4.00'
+          memory: 2048M
+        reservations:
+          cpus: '0.50'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # read_only: true    # would require tmpfs mounts for /tmp and .pydantic cache
+
+# ── Networks ────────────────────────────────────────────
+networks:
+  maaweb-net:
+    name: maaweb-net
+    driver: bridge
+
+# ── Volumes (4 layers, per Staff-Engineer drain/persist spec) ──
+volumes:
+  maaweb-config:
+    name: maaweb-config
+  maaweb-logs:
+    name: maaweb-logs
+  maaweb-cache:
+    name: maaweb-cache
+  maaweb-media:
+    name: maaweb-media
