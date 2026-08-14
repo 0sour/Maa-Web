@@ -74,7 +74,7 @@ export const TASK_TYPES: TaskTypeDef[] = [
     type: '刷理智', entry: 'Fight', label: '刷理智 Fight',
     params: {
       stage: 'CE-6', medicine: 0, medicine_expire_days: 0, stone: 0,
-      times: 10, series: 0, report_to_penguin: false, penguin_id: '',
+      times: -1, series: 0, report_to_penguin: false, penguin_id: '',
       report_to_yituliu: false, yituliu_id: '', server: 'CN',
       client_type: '', DrGrandet: false,
       use_expiring_medicine: false,  // 使用临期药（旧数据兼容：medicine_expire_days>0 视为开启）

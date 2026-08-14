@@ -454,3 +454,22 @@ class TestToAsstTask:
         session.set_handler(lambda _level, _msg: None, on_event)
         session._dispatch(20003, b'{"what": "OfflineConfirm", "details": {}}')
         assert events == [{"event": "offline_confirm"}]
+
+    def test_fight_times_unlimited_stripped(self):
+        """战斗次数 -1/0 = 不限（对齐 MAA 默认 int.MaxValue）：不下发，引擎默认 INT_MAX。"""
+        for v in (-1, 0):
+            item = TaskItem(
+                name="刷理智", entry="Fight", type="刷理智",
+                params={"stage": "CE-6", "times": v},
+            )
+            ttype, params = asstproxy.to_asst_task(item)
+            assert ttype == "Fight"
+            assert "times" not in params
+
+    def test_fight_times_positive_kept(self):
+        item = TaskItem(
+            name="刷理智", entry="Fight", type="刷理智",
+            params={"stage": "CE-6", "times": 3},
+        )
+        ttype, params = asstproxy.to_asst_task(item)
+        assert params["times"] == 3

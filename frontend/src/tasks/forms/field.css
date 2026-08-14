@@ -5,7 +5,7 @@
 .params .f-sec:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
 .params .f-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--color-border-default); }
 .params .f-row:last-child { border: none; }
-.params .f-label { flex: 1; font-size: var(--font-size-md); color: var(--color-text-secondary); letter-spacing: 0.5px; }
+.params .f-label { flex: 1; min-width: 100px; font-size: var(--font-size-md); color: var(--color-text-secondary); letter-spacing: 0.5px; }
 .params .f-label small { display: block; font-size: var(--font-size-xs); color: var(--color-text-tertiary); letter-spacing: 0.3px; }
 
 .params select, .params .f-text {

@@ -88,7 +88,7 @@
 > - `taskrunner.py` — 每设备一个串行 `TaskRunner`：状态机 `idle → running → finished | error | stopped`；真实调用 `AsstAppendTask(type, params) × N` + `AsstStart()`（非阻塞，引擎后台线程执行），`AsstMsg` 回调（TaskChainStart/Completed/Error/Stopped、AllTasksCompleted）经 `call_soon_threadsafe` 线程安全投递到日志队列驱动状态机；日志持久化 `LogEntry` + 广播 eventbus；Copilot 多作业（`params.jobs` 勾选项）展开为逐作业执行；stop 幂等 + 5s 兜底强制收尾（避免 stopping 卡死）
 > - **分辨率预检**：`_ensure_resolution_supported()` 启动前检查设备 16:9 / 9:16（容差 0.02），非支持比例给出明确引导（USB 真机提示 1080x1920、模拟器提示 1920x1080），预检失败不阻塞（交给 AsstConnect 终判）
 > - `eventbus.py` — 进程内 pub/sub：WS 处理器按 device_id 订阅，runner 发布日志行
-> - **客户端本地语义模拟**：Fight 周计划按星期跳过（`_weekly_schedule_enabled`）、Mall「一日只执行一次」（`_apply_mall_once_a_day`，游戏日 last_time 存 Setting 表，对齐 MallTask.cs IsCreditFightAvailable）、停滞检测（`_stall_watch_loop`/`_check_stall`，对齐 RunningState StallTimer：卡死超时无进展 → 日志警告 + 停滞通知）
+> - **客户端本地语义模拟**：Fight 周计划按星期跳过（`_weekly_schedule_enabled`）、战斗次数 -1/0=不限（asstproxy 剥离不下发，引擎默认 INT_MAX）、Mall「一日只执行一次」（`_apply_mall_once_a_day`，游戏日 last_time 存 Setting 表，对齐 MallTask.cs IsCreditFightAvailable）、停滞检测（`_stall_watch_loop`/`_check_stall`，对齐 RunningState StallTimer：卡死超时无进展 → 日志警告 + 停滞通知）
 > - 前置校验：设备在线 / 引擎可用 / 引擎包就绪 / 分辨率支持，任一不满足 → `TaskQueueError` → API 409 + 人话 detail；`AsstConnect` 失败（如触控模式不可用）→ `EngineCreateError` → API 502
 > - `TaskRun` 表记录每次运行（status/summary/error/started_at/finished_at），`LogEntry` 表持久化日志行
 > - **外部通知**（`engine/notify.py`，M6）：完成/出错/停滞事件 → 按 notify.* 配置逐渠道推送（Server酱/钉钉加签/自定义 Webhook），发送记录落 `notify_logs`；taskrunner 收尾时先广播 run_finished 再发送

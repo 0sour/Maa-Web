@@ -1,6 +1,6 @@
 <script setup lang="ts">
-/** 关卡搜索下拉（「目标关卡」）：输入过滤 + 候选选择，允许自由输入。
- *  数据源：后端 /v1/resources/stages（引擎包 stages.json），失败回退内置常用列表。 */
+/** 关卡选择（「目标关卡」）：候选 = 引擎可导航关卡（常用/活动，后端过滤），
+ *  输入过滤 + 候选选择；也可手动输入任意关卡名（对齐 MAA 客户端「手动输入关卡名」）。 */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { resourcesApi } from '@/api/resources'
 

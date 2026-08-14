@@ -267,22 +267,48 @@ def local_state() -> dict:
 
 
 def stage_codes() -> list[str]:
-    """引擎包 resource/stages.json 中的关卡代号列表（去重排序），供前端搜索选择。
+    """引擎**可导航**关卡代号列表（对齐 MAA 客户端 StageManager），供前端搜索下拉。
 
-    数据随动态资源同步热更新（MaaResource）；文件缺失/损坏返回空列表。
+    候选 = 常驻/活动导航任务（resource/tasks/Stages/*.json，如 CE-6、TO-5）
+          + 主线格式关卡（stages.json 中 `X-NN-NN` 形，如 1-7、JT8-2、H10-1-Hard）。
+    引擎无法导航的关卡（如活动未收录导航的 TO-6）不在此列——前端可「手动输入
+    关卡名」自由填写（入队时引擎可能拒绝）。
     """
+    import re
+
+    root = get_settings().maa_resource_dir / "resource"
+    codes: set[str] = set()
+
+    # 1) 导航任务（tasks/Stages/*.json）：过滤 @ 后缀 / Open / Chapter 等辅助任务
     try:
-        data = json.loads(
-            (get_settings().maa_resource_dir / "resource" / "stages.json").read_text(
-                encoding="utf-8"
-            )
-        )
+        stages_dir = root / "tasks" / "Stages"
+        for f in sorted(stages_dir.glob("*.json")):
+            try:
+                tasks = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if not isinstance(tasks, dict):
+                continue
+            for name in tasks:
+                if "@" in name:
+                    continue
+                if re.search(r"(Open|Ocr|Opt|Chapter)", name):
+                    continue
+                codes.add(name)
+    except OSError:
+        pass
+
+    # 2) 主线格式关卡（StageNavigationTask 支持 X-NN-NN / H10-1-Hard 等）
+    mainline = re.compile(r"^[A-Za-z]{0,3}\d{1,2}-\d{1,2}(?:-\w+)?$")
+    try:
+        data = json.loads((root / "stages.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        log.warning("stages.json 读取失败，返回空关卡列表")
-        return []
-    if not isinstance(data, list):
-        return []
-    codes = {str(s.get("code", "")) for s in data if isinstance(s, dict) and s.get("code")}
+        data = []
+    if isinstance(data, list):
+        for s in data:
+            if isinstance(s, dict) and mainline.match(str(s.get("code", ""))):
+                codes.add(str(s["code"]))
+
     return sorted(codes)
 
 

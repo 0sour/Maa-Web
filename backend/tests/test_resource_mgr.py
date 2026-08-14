@@ -193,17 +193,27 @@ class TestLocalState:
         assert state["pipelines"] >= 1
 
     def test_stage_codes_reads_and_sorts(self, res_env):
-        (res_env / "resource").mkdir(parents=True, exist_ok=True)
-        (res_env / "resource" / "stages.json").write_text(
+        """候选 = 导航任务（常驻/活动）+ 主线格式关卡；无导航的活动关（TO-6）排除。"""
+        res = res_env / "resource"
+        (res / "tasks" / "Stages").mkdir(parents=True, exist_ok=True)
+        (res / "tasks" / "Stages" / "Supplies.json").write_text(
+            json.dumps({"CE-6": {}, "CE6@Stage": {}}), encoding="utf-8"
+        )
+        (res / "tasks" / "Stages" / "TO.json").write_text(
+            json.dumps({"TO-5": {}, "TO-7": {}, "TO-Open": {}, "TOChapterToTO": {}}),
+            encoding="utf-8",
+        )
+        (res / "stages.json").write_text(
             json.dumps([
                 {"code": "CE-6", "apCost": 30},
                 {"code": "1-7", "apCost": 9},
                 {"code": "1-7", "apCost": 9},  # 重复应去重
+                {"code": "TO-6", "apCost": 12},  # 活动关但无导航任务 → 排除
                 {"apCost": 12},  # 无 code 应跳过
             ]),
             encoding="utf-8",
         )
-        assert resource_mgr.stage_codes() == ["1-7", "CE-6"]
+        assert resource_mgr.stage_codes() == ["1-7", "CE-6", "TO-5", "TO-7"]
 
     def test_stage_codes_missing_returns_empty(self, res_env):
         assert resource_mgr.stage_codes() == []

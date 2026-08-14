@@ -230,9 +230,13 @@ class AsstSession:
     def append_task(self, type_name: str, params: dict) -> int:
         """添加一个任务（返回 task_id；0 表示参数不被接受）。"""
         payload = json.dumps(params, ensure_ascii=False)
-        return int(
+        task_id = int(
             self._lib.AsstAppendTask(self._ptr, type_name.encode("utf-8"), payload.encode("utf-8"))
         )
+        if not task_id:
+            # 诊断：记录被引擎拒绝的完整参数（实机排障用）
+            log.error("AsstAppendTask rejected type=%s params=%s", type_name, payload)
+        return task_id
 
     def set_task_params(self, task_id: int, params: dict) -> bool:
         return bool(
@@ -496,6 +500,11 @@ def to_asst_task(item: Any, client_type: str = "Official") -> tuple[str, dict]:
         # 客户端本地行为（引擎不消费）：周计划由 taskrunner 按星期过滤，掉线重启由 runner 监听
         merged.pop("weekly_schedule", None)
         merged.pop("auto_restart_on_drop", None)
+        # 战斗次数 -1/0 = 不限（对齐 MAA 客户端默认 int.MaxValue）：不下发，
+        # 引擎 FightTimesTaskPlugin 默认 INT_MAX 即无限（次数不触发停止）
+        t = merged.get("times")
+        if t is not None and str(t).lstrip("-").isdigit() and int(t) <= 0:
+            merged.pop("times", None)
     if ttype == "Copilot":
         # 前端 add_user_additional（[{name, skill}]）→ 引擎 user_additional
         ua = merged.pop("add_user_additional", None)

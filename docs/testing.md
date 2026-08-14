@@ -153,11 +153,11 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | `backend/tests/test_devices.py` | R4/R9/R11/R17：设备 CRUD 全生命周期 + connect 降级 + detect 端点 + 分辨率路由 + 重复设备查重 + 列表探活降级（保持在线/扫描失败不阻塞）+ 隔离 | ✅ 已落地（11 用例） |
 | `backend/tests/conftest.py` | R8：临时目录隔离 + ASGI 客户端 + 表级隔离（含 runtime_settings.json 隔离） | ✅ 已落地 |
 | `backend/tests/test_adb.py` | R11/R17：adb 输出解析（devices -l / connect）+ 路径解析 + 命令封装 + `wm size` 解析/设置/重置 + resolve_adb_path 优先级（设置页热更新 > env > PATH）+ USB connect serial 在线校验 | ✅ 已落地（39 用例） |
-| `backend/tests/test_asstproxy.py` | R12：fake Asst 引擎（MaaCore 动态库）→ 会话创建/池/回调解析/任务映射/降级（含 copilot_mode 场景分发、OfflineConfirm 事件） | ✅ 已落地（38 用例） |
+| `backend/tests/test_asstproxy.py` | R12：fake Asst 引擎（MaaCore 动态库）→ 会话创建/池/回调解析/任务映射/降级（含 copilot_mode 场景分发、OfflineConfirm 事件、Fight times≤0 剥离不限） | ✅ 已落地（40 用例） |
 | `backend/tests/test_manager.py` | R11/R12：连接状态机（成功/拒绝/缺失/引擎降级）+ 环境状态 | ✅ 已落地（11 用例） |
 | `backend/tests/test_taskrunner.py` | R13/R14/R17：任务队列状态机（前置校验/成功/失败/停止/快照/Copilot 系多作业展开）+ 日志持久化 + 分辨率预检 + 残留事件不串线 + 周计划按星期跳过 + OfflineConfirm 停止/续刷 + Mall 一日只执行一次 + 停滞检测（超时触发/提醒间隔/重置/开关） | ✅ 已落地（38 用例） |
 | `backend/tests/test_tasks_api.py` | R13/R14：run/stop/status/logs 路由 + 409/422/404 语义 + 历史日志按天分组（仅今天之前/时区序列化）+ 当天日志接口（/logs/today） | ✅ 已落地（10 用例） |
-| `backend/tests/test_resource_mgr.py` | R15/R16：引擎包状态/远端查询/下载-解压-原子替换全流程（zip + linux tar.gz）+ GitHub 镜像候选测速 + MirrorChyan（CDK 检查/增量包/os-arch/up_to_date）+ 动态资源同步（diff/full）+ item_index 材料表（可刷过滤）+ battle_data 干员表 + recruitment Tags + 肉鸽开局干员 | ✅ 已落地（58 用例） |
+| `backend/tests/test_resource_mgr.py` | R15/R16：引擎包状态/远端查询/下载-解压-原子替换全流程（zip + linux tar.gz）+ GitHub 镜像候选测速 + MirrorChyan（CDK 检查/增量包/os-arch/up_to_date）+ 动态资源同步（diff/full）+ item_index 材料表（可刷过滤）+ battle_data 干员表 + recruitment Tags + 肉鸽开局干员 + stage_codes 可导航过滤（导航任务/主线格式/活动缺失排除） | ✅ 已落地（58 用例） |
 | `backend/tests/test_resources_api.py` | R15：resources status/update/sync/items/operators/recruit-tags/roguelike-core-chars 路由 + 失败上报 | ✅ 已落地（7 用例） |
 | `backend/tests/test_settings_api.py` | R16：镜像源设置 GET/PUT（update_source / CDK 保存-回显-脱敏）/ 有效期检查 / CDK 未变更保留有效期回归 + 通用设置分组（GET/PUT/upsert/删除/422）+ logs-export zip + geoip（IP 定位成功/服务失败 502） | ✅ 已落地（16 用例） |
 | `backend/tests/test_copilot_mgr.py` | R18：作业站代码解析（prts:// / maa:// / 简写 / 纯数字）+ 作业/作业集拉取 + 文件名安全 + 关卡名映射 + SSS 作业（type=SSS 免 opers 校验 + stage_name/strategy 细分校验）+ job_type | ✅ 已落地（24 用例） |
@@ -166,7 +166,7 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | `backend/tests/test_notify.py` | M6 外部通知：渠道消息构造（Server酱 URL/钉钉加签/自定义模板与默认 JSON）+ 发送主流程（无配置空返回/事件开关/多渠道+禁用过滤/HTTP 错误与异常落库）+ API（测试发送/记录/重发 404） | ✅ 已落地（11 用例） |
 | `frontend/scripts/verify-ui.mjs` | R4/R6/R7/R11：L3 浏览器自动化回归（首页/设备 CRUD+连接终态/检测面板/占位页/控制台错误） | ✅ 已落地（27 断言） |
 
-> 全量 pytest 实测：**276 passed**（2026-08-14）。用例数含参数化展开；新增模块已登记本表。
+> 全量 pytest 实测：**278 passed**（2026-08-15）。用例数含参数化展开；新增模块已登记本表。
 
 ---
 

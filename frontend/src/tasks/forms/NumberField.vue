@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-/** 数字微调（对应 MAA `hc:NumericUpDown`）：数字输入 + 上下步进按钮，受 min/max 约束。 */
+/** 数字微调（对应 MAA `hc:NumericUpDown`）：数字输入 + 上下步进按钮，受 min/max 约束。
+ * specialValue/specialLabel：特定值用文字显示（如 -1 →「不限」，MAA 默认 int.MaxValue 语义）。 */
 const props = withDefaults(
   defineProps<{
     modelValue?: unknown
@@ -9,6 +10,8 @@ const props = withDefaults(
     max?: number
     step?: number
     disabled?: boolean
+    specialValue?: number
+    specialLabel?: string
   }>(),
   { step: 1 },
 )
@@ -24,6 +27,9 @@ function toNum(v: unknown): number {
 
 const displayText = computed(() => {
   const v = props.modelValue
+  if (props.specialValue !== undefined && toNum(v) === props.specialValue) {
+    return props.specialLabel ?? String(props.specialValue)
+  }
   return v === undefined || v === null || v === '' ? '' : String(v)
 })
 

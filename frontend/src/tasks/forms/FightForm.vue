@@ -141,7 +141,7 @@ const clientTypeModel = strField('client_type')
   <div class="params">
     <div class="f-title">▸ 刷理智参数</div>
     <div class="f-row">
-      <label class="f-label">目标关卡</label>
+      <label class="f-label">目标关卡<small>候选为常用/活动可导航关卡；可手动输入任意关卡名（如 4-10、AP-5、H10-1-Hard、SSReopen-XX），引擎不支持的会入队失败</small></label>
       <StagePicker v-model="p.stage" />
     </div>
     <div class="f-row">
@@ -153,8 +153,8 @@ const clientTypeModel = strField('client_type')
       <NumberField v-model="p.stone" :min="0" :max="999" />
     </div>
     <div class="f-row">
-      <label class="f-label">战斗次数<small>最大执行次数</small></label>
-      <NumberField v-model="p.times" :min="0" :max="999" />
+      <label class="f-label">战斗次数<small>最大执行次数：-1 = 不限（刷到理智/掉落条件自然停止，对齐 MAA 默认）</small></label>
+      <NumberField v-model="p.times" :min="-1" :max="999" :special-value="-1" special-label="不限" />
     </div>
     <div class="f-row">
       <label class="f-label">代理倍率</label>

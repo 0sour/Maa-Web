@@ -118,7 +118,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 </template>
 
 <style scoped>
-.ds { position: relative; min-width: 120px; flex-shrink: 0; }
+.ds { position: relative; min-width: 120px; width: max-content; max-width: 100%; flex-shrink: 0; }
 .ds.disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* 触发框（斜切直角，无圆角） */
