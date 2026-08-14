@@ -12,6 +12,8 @@ const appVersion = ref('—')
 const engineVersion = ref('—')
 const engineSource = ref('')
 const loadErr = ref('')
+/** 已裁剪清单默认折叠 */
+const showTrimmed = ref(false)
 
 onMounted(async () => {
   try {
@@ -76,15 +78,6 @@ const trimmed = [
     </div>
     <div v-if="loadErr" class="err-bar">⚠ {{ loadErr }}</div>
 
-    <div class="f-sec">已裁剪 · WebUI 不适用</div>
-    <div class="trim-list">
-      <div v-for="t in trimmed" :key="t.name" class="trim-item">
-        <span class="diamond"></span>
-        <b>{{ t.name }}</b>
-        <span class="reason">{{ t.reason }}</span>
-      </div>
-    </div>
-
     <div class="f-sec">本项目</div>
     <div class="link-list">
       <a v-for="l in links" :key="l.url" class="link-item" :href="l.url" target="_blank" rel="noopener">
@@ -101,6 +94,19 @@ const trimmed = [
         <span class="nm">{{ l.label }}</span>
         <span class="desc">{{ l.desc }}</span>
       </a>
+    </div>
+
+    <!-- 已裁剪清单：默认折叠，放页面最底部 -->
+    <div class="f-sec trim-hd" role="button" tabindex="0" @click="showTrimmed = !showTrimmed" @keydown.enter="showTrimmed = !showTrimmed">
+      已裁剪 · WebUI 不适用
+      <span class="arr">{{ showTrimmed ? '▾' : '▸' }}</span>
+    </div>
+    <div v-if="showTrimmed" class="trim-list">
+      <div v-for="t in trimmed" :key="t.name" class="trim-item">
+        <span class="diamond"></span>
+        <b>{{ t.name }}</b>
+        <span class="reason">{{ t.reason }}</span>
+      </div>
     </div>
 
     <p class="hint">本项目仅供学习交流使用。明日方舟为鹰角网络的注册商标，本项目与鹰角网络无任何关联。</p>
@@ -121,6 +127,13 @@ const trimmed = [
   letter-spacing: 1px; margin-top: 6px; padding-top: 10px;
   border-top: 1px dashed var(--color-border-default);
 }
+.trim-hd {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+  transition: color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+.trim-hd:hover { color: var(--color-brand); }
+.trim-hd .arr { font-size: 10px; }
 .trim-list { display: flex; flex-direction: column; gap: 4px; }
 .trim-item {
   display: flex; align-items: center; gap: 10px;
