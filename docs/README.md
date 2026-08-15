@@ -9,7 +9,7 @@
 | [architecture.md](./architecture.md) | 技术架构：引擎集成、任务模型、远程控制协议、API 设计、数据模型 |
 | [testing.md](./testing.md) | 测试流程规范：风险→检查矩阵、测试分层、门禁命令、flake 策略、回归清单 |
 | [DEPLOY.md](./DEPLOY.md) | NAS 部署指南：架构选择、三步启动、网络 ADB 设备接入、数据卷/升级、常见问题 |
-| design-system-arknights.md (../ui-design/design-system-arknights.md) | UI 设计规范：明日方舟主题 Token、组件契约、模板页面（配套设计稿见 [ui-design/](../ui-design/)） |
+| [design-system-arknights.md](./design-system-arknights.md) | UI 设计规范（入库）：明日方舟主题 Token、组件契约、模板页面；配套 HTML 设计稿为本地开发资产（`ui-design/`，不入库） |
 
 ## 快速索引
 
@@ -28,7 +28,6 @@
 | `ui-design/07-component-gallery.html` | 全控件组件画廊：按钮/输入/下拉/表单/列表/日志等全部交互控件示例 |
 | `ui-design/09-autotask-account-detail.html` | 自动任务页设计稿（终版）：时间槽 × 账号 × 方案配置 + RUN TEST + 独立日志 |
 | `ui-design/10-logs-source.html` | 作战日志按来源区分设计稿：实时/历史来源选择框 + 每日 [普通任务]/[自动任务] 分列 |
-| `ui-design/design-system-arknights.md` | 设计规范：Token 体系、组件 Props/States 契约、模板页面、无障碍标准 |
 
 > 设计稿与规范为前端实现契约：正式开发时组件需引用规范中的 Token（CSS 变量），参数控件语义对齐 PRD §4.3「控件类型速查」。
 

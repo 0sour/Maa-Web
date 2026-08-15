@@ -155,15 +155,10 @@ Maa-Web/
 
 ## 🎨 UI 设计
 
-界面采用**明日方舟主题**风格（灰蓝金属 + 金色点缀 + 锐利几何），设计稿与规范位于 [ui-design/](./ui-design/)：
+界面采用**明日方舟主题**风格（灰蓝金属 + 金色点缀 + 锐利几何）：
 
-| 资产 | 说明 |
-|------|------|
-| [03-arknights.html](./ui-design/03-arknights.html) | 总览仪表盘设计稿（浏览器直接打开预览） |
-| [07-component-gallery.html](./ui-design/07-component-gallery.html) | 全控件组件画廊：按钮/输入/下拉/表单/列表/日志等全部交互控件 |
-| [design-system-arknights.md](./ui-design/design-system-arknights.md) | 设计规范：Token 体系、组件 Props/States 契约、模板页面、无障碍 |
-
-> 设计规范为前端实现契约，正式开发时组件引用其中的 CSS 变量 Token，参数控件语义对齐 PRD §4.3「控件类型速查」。
+- **设计规范**（入库）：[docs/design-system-arknights.md](./docs/design-system-arknights.md)——Token 体系（CSS 变量）、组件 Props/States 契约、模板页面、无障碍标准。**设计规范为前端实现契约**，正式开发时组件引用其中的 CSS 变量 Token，参数控件语义对齐 PRD §4.3「控件类型速查」。
+- **HTML 设计稿**（本地开发资产，不入库）：`ui-design/` 目录（03-arknights 总览仪表盘 / 07-component-gallery 组件画廊等），浏览器直接打开预览。
 
 ---
 
