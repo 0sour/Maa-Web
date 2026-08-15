@@ -40,6 +40,7 @@ LABEL org.opencontainers.image.title="Maa-Web Backend (FastAPI + MaaCore)" \
 
 # Minimal runtime-only system deps:
 #   - libgomp1 / libglib2.0-0: OpenCV 依赖（引擎识别/截图）
+#   - libatomic1: MaaCore 动态库依赖（libatomic.so.1，缺失会加载失败）
 #   - adb: Android Debug Bridge（设备接入：网络 ADB 连局域网设备）
 #   - ca-certificates: HTTPS requests (resource updates)
 #   - tini: proper SIGTERM forwarding (reap children, PID1)
@@ -48,6 +49,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         libgomp1 \
         libglib2.0-0 \
+        libatomic1 \
         adb \
         ca-certificates \
         tini \
