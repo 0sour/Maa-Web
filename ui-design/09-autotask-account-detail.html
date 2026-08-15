@@ -33,8 +33,9 @@
 
   /* 多时间点列表 */
   .slots{display:flex;flex-direction:column;gap:8px}
-  .slot{border:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .slot{border:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
   .slot:hover{border-color:var(--gold-strong)}
+  .slot.sel{background:var(--bg-active);border-color:var(--gold-strong);border-left:2px solid var(--gold-strong)}
   .slot.off{opacity:.55}
   .slot-hd{display:flex;align-items:center;gap:8px}
   .sw{width:30px;height:14px;border:1px solid var(--border-strong);position:relative;cursor:pointer;clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);flex-shrink:0}
@@ -90,7 +91,7 @@
       <div class="panel">
         <div class="ph"><span class="diamond"></span><b>执行时间</b><small>可多个，各自星期</small><button class="add">＋ 添加时间</button></div>
         <div class="slots">
-          <div class="slot">
+          <div class="slot sel">
             <div class="slot-hd"><span class="sw on"></span><span class="nm">早间长草</span><span class="x">✕</span></div>
             <div class="slot-row">
               <div class="wds"><span class="wd on">一</span><span class="wd on">二</span><span class="wd on">三</span><span class="wd on">四</span><span class="wd on">五</span><span class="wd on">六</span><span class="wd on">日</span></div>
@@ -114,10 +115,11 @@
         </div>
       </div>
       <div class="panel">
-        <div class="ph"><span class="diamond"></span><b>账号</b><small>顺序 = 执行顺序 · 各时间点共用</small></div>
+        <div class="ph"><span class="diamond"></span><b>账号</b><small>「早间长草」的账号 · 每时间点独立</small></div>
         <div class="acc-list">
           <div class="acc sel"><span class="idx">1</span><b>账号A（官服）</b><small>日常六件套 · 5 项</small><span class="x">✕</span></div>
           <div class="acc"><span class="idx">2</span><b>账号B（官服）</b><small>基建 · 2 项</small><span class="x">✕</span></div>
+          <!-- 注：切换时间点后此处为该时间点自己的账号列表，可与「早间长草」不同 -->
           <div class="acc"><span class="idx">3</span><b>账号C（B服）</b><small>活动图 · 3 项</small><span class="x">✕</span></div>
         </div>
         <button class="add">＋ 添加账号</button>
@@ -126,7 +128,7 @@
 
     <!-- 右：选中账号的方案配置 -->
     <div class="panel">
-      <div class="ph2"><span class="diamond"></span><b>账号A（官服） · 方案配置</b><small>该账号独立的任务与参数</small></div>
+      <div class="ph2"><span class="diamond"></span><b>早间长草 <span style="color:var(--gold);margin:0 6px">▸</span> 账号A（官服） · 方案配置</b><small>该时间点该账号的任务与参数</small></div>
       <div class="frow">
         <label>执行方案<small>从任务编排保存的方案中选择</small></label>
         <select class="sel"><option>日常六件套（5 项）</option><option>基建（2 项）</option><option>活动图（3 项）</option></select>
@@ -149,7 +151,7 @@
         <span style="font-size:11px;color:var(--text-3)">3 个时间点 × 3 个账号 · 按序</span>
         <button class="linkstart">▶ LINK START</button>
       </div>
-      <p class="note">每个时间点按账号顺序执行各自方案；多个时间点共用同一组账号配置。每个账号的方案独立快照，「参数微调」可不动原方案调整该账号的个别参数。</p>
+      <p class="note">点击时间卡片切换其账号列表（每个时间点账号独立可调）；点击账号查看/编辑其方案。试跑/立即执行作用于当前选中的时间点。</p>
     </div>
   </div>
 </div>
