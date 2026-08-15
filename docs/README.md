@@ -20,13 +20,15 @@
 
 ## UI 设计资产
 
+> 设计稿与规范为**本地开发资产**（`ui-design/` 目录不入库，开发中产物；仓库内不包含，获取需本地或历史提交）。
+
 | 文件 | 说明 |
 |------|------|
-| [03-arknights.html](../ui-design/03-arknights.html) | 选用风格设计稿：明日方舟主题总览仪表盘（可独立打开预览） |
-| [09-autotask-account-detail.html](../ui-design/09-autotask-account-detail.html) | 自动任务页设计稿（终版）：时间槽 × 账号 × 方案配置 + RUN TEST + 独立日志 |
-| [10-logs-source.html](../ui-design/10-logs-source.html) | 作战日志按来源区分设计稿：实时/历史来源选择框 + 每日 [普通任务]/[自动任务] 分列 |
-| [07-component-gallery.html](../ui-design/07-component-gallery.html) | 全控件组件画廊：按钮/输入/下拉/表单/列表/日志等全部交互控件示例 |
-| [design-system-arknights.md](../ui-design/design-system-arknights.md) | 设计规范：Token 体系、组件 Props/States 契约、模板页面、无障碍标准 |
+| `ui-design/03-arknights.html` | 选用风格设计稿：明日方舟主题总览仪表盘 |
+| `ui-design/07-component-gallery.html` | 全控件组件画廊：按钮/输入/下拉/表单/列表/日志等全部交互控件示例 |
+| `ui-design/09-autotask-account-detail.html` | 自动任务页设计稿（终版）：时间槽 × 账号 × 方案配置 + RUN TEST + 独立日志 |
+| `ui-design/10-logs-source.html` | 作战日志按来源区分设计稿：实时/历史来源选择框 + 每日 [普通任务]/[自动任务] 分列 |
+| `ui-design/design-system-arknights.md` | 设计规范：Token 体系、组件 Props/States 契约、模板页面、无障碍标准 |
 
 > 设计稿与规范为前端实现契约：正式开发时组件需引用规范中的 Token（CSS 变量），参数控件语义对齐 PRD §4.3「控件类型速查」。
 

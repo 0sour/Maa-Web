@@ -69,3 +69,6 @@ captures/
 
 # 会话记录（含开发内部细节，仅本地，不入库）
 docs/session-*.md
+
+# UI 设计稿（开发中间产物，不入库；采纳稿保留在本地 ui-design/）
+ui-design/
