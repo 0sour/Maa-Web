@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自动任务 · 设计稿 D（账号流水线）</title>
+<style>
+  :root{
+    --bg:#1a1d22; --bg-panel:#23272e; --bg-subtle:#2c2e34; --bg-active:rgba(216,177,106,.12);
+    --border:#3a3f49; --border-strong:#565d6b;
+    --text:#e8e6df; --text-2:#9b9688; --text-3:#6d6a5e;
+    --gold:#d8b16a; --gold-strong:#a97f2f;
+    --ok:#9fb56f; --warn:#c98f4e; --err:#b05b53;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font:13px "Microsoft YaHei","PingFang SC",sans-serif;padding:26px}
+  .page{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .top{display:flex;align-items:center;gap:10px}
+  .diamond{width:13px;height:13px;border:1px solid var(--gold);transform:rotate(45deg);flex-shrink:0;background:rgba(216,177,106,.15)}
+  .top b{font-size:18px;letter-spacing:2px}
+  .top small{margin-left:auto;color:var(--text-3);font-size:11px}
+
+  .panel{background:var(--bg-panel);border:1px solid var(--border);padding:18px}
+  .ph{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .ph .diamond{width:10px;height:10px}
+  .ph b{font-size:13.5px;letter-spacing:1px}
+  .ph small{margin-left:auto;color:var(--text-3);font-size:11px}
+
+  /* 调度信息 */
+  .row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px dashed var(--border)}
+  .row:last-child{border:none}
+  .row label{flex:1;font-size:12.5px;color:var(--text-2)}
+  .row label small{display:block;font-size:10.5px;color:var(--text-3);margin-top:2px}
+  .wds{display:flex;gap:5px}
+  .wd{width:26px;height:26px;line-height:26px;text-align:center;font-size:11.5px;border:1px solid var(--border);color:var(--text-3);cursor:pointer;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px)}
+  .wd.on{border-color:var(--gold-strong);color:var(--gold);background:var(--bg-active)}
+  .time{background:var(--bg-subtle);border:1px solid var(--border);color:var(--gold);font-family:var(--mono);font-size:14px;padding:7px 12px;letter-spacing:1px;outline:none;width:110px}
+  .sw{width:34px;height:16px;border:1px solid var(--border-strong);position:relative;cursor:pointer;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);flex-shrink:0}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;background:var(--border-strong)}
+  .sw.on{background:rgba(216,177,106,.25);border-color:var(--gold-strong)}
+  .sw.on::after{left:20px;background:var(--gold)}
+
+  /* 流水线 */
+  .pipe{display:flex;flex-direction:column;gap:0}
+  .step{display:flex;align-items:stretch;gap:0;position:relative}
+  .step-idx{width:44px;display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+  .step-dot{width:20px;height:20px;line-height:20px;text-align:center;border:1px solid var(--gold-strong);color:var(--gold);font-family:var(--mono);font-size:11px;transform:rotate(45deg);margin-top:18px;flex-shrink:0;background:var(--bg-panel)}
+  .step-dot span{display:inline-block;transform:rotate(-45deg)}
+  .step-line{flex:1;width:1px;border-left:1px dashed var(--border-strong);margin-top:4px}
+  .step:last-child .step-line{border-left-style:none}
+  .step-body{flex:1;display:flex;align-items:center;gap:12px;background:var(--bg-subtle);border:1px solid var(--border);padding:14px 16px;margin-bottom:10px}
+  .step-body:hover{border-color:var(--gold-strong)}
+  .acc-sel{background:var(--bg-panel);border:1px solid var(--border-strong);color:var(--text);padding:8px 12px;font-size:12.5px;min-width:140px;outline:none}
+  .arr{color:var(--gold);font-size:14px;flex-shrink:0}
+  .plan-sel{background:var(--bg-panel);border:1px solid var(--border-strong);color:var(--text);padding:8px 12px;font-size:12.5px;min-width:200px;outline:none}
+  .step-summary{flex:1;min-width:0;font-size:11px;color:var(--text-3);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .step-ops{display:flex;gap:6px;flex-shrink:0}
+  .mini{border:1px solid var(--border);background:none;color:var(--text-2);font-size:11px;padding:4px 10px;cursor:pointer}
+  .mini:hover{border-color:var(--gold-strong);color:var(--gold)}
+  .mini.danger:hover{border-color:var(--err);color:var(--err)}
+  .add-step{margin:4px 0 0 44px;border:1px dashed var(--border-strong);background:none;color:var(--text-2);padding:10px;font-size:12px;cursor:pointer;width:calc(100% - 44px)}
+  .add-step:hover{color:var(--gold);border-color:var(--gold-strong)}
+  .exec-note{font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><span class="diamond"></span><b>自动任务 · 每日长草</b><small>按账号顺序执行各自方案</small></div>
+
+  <!-- 调度信息 -->
+  <div class="panel">
+    <div class="ph"><span class="diamond"></span><b>调度</b><small>星期 × 时间</small></div>
+    <div class="row">
+      <label>启用</label>
+      <span class="sw on"></span>
+    </div>
+    <div class="row">
+      <label>执行星期<small>未勾选则当天跳过</small></label>
+      <div class="wds"><span class="wd on">一</span><span class="wd on">二</span><span class="wd on">三</span><span class="wd on">四</span><span class="wd on">五</span><span class="wd on">六</span><span class="wd on">日</span></div>
+    </div>
+    <div class="row">
+      <label>执行时间</label>
+      <input class="time" value="06:30">
+    </div>
+  </div>
+
+  <!-- 账号流水线：每个账号选各自方案 -->
+  <div class="panel">
+    <div class="ph"><span class="diamond"></span><b>执行流水线</b><small>账号 → 各自方案，按序执行（切号 → 跑方案 → 下一账号）</small></div>
+
+    <div class="pipe">
+      <div class="step">
+        <div class="step-idx"><div class="step-dot"><span>1</span></div><div class="step-line"></div></div>
+        <div class="step-body">
+          <select class="acc-sel"><option>账号A（官服）</option><option>账号B（官服）</option><option>账号C（B服）</option></select>
+          <span class="arr">▶</span>
+          <select class="plan-sel"><option>方案：日常六件套（5 项）</option><option>方案：基建（2 项）</option></select>
+          <span class="step-summary">StartUp / Infrast / Mall / Fight CE-6 / Award</span>
+          <div class="step-ops"><button class="mini">↑</button><button class="mini">↓</button><button class="mini danger">✕</button></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-idx"><div class="step-dot"><span>2</span></div><div class="step-line"></div></div>
+        <div class="step-body">
+          <select class="acc-sel"><option>账号B（官服）</option></select>
+          <span class="arr">▶</span>
+          <select class="plan-sel"><option>方案：基建（2 项）</option></select>
+          <span class="step-summary">StartUp / Infrast</span>
+          <div class="step-ops"><button class="mini">↑</button><button class="mini">↓</button><button class="mini danger">✕</button></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-idx"><div class="step-dot"><span>3</span></div><div class="step-line"></div></div>
+        <div class="step-body">
+          <select class="acc-sel"><option>账号C（B服）</option></select>
+          <span class="arr">▶</span>
+          <select class="plan-sel"><option>方案：活动图（3 项）</option></select>
+          <span class="step-summary">StartUp / Fight TO-7 / Award</span>
+          <div class="step-ops"><button class="mini">↑</button><button class="mini">↓</button><button class="mini danger">✕</button></div>
+        </div>
+      </div>
+    </div>
+    <button class="add-step">＋ 添加账号步骤</button>
+    <p class="exec-note">执行顺序：切至账号A → 跑「日常六件套」→ 切至账号B → 跑「基建」→ 切至账号C → 跑「活动图」→ 结束。每个账号的客户端类型/账号名取自账号管理。</p>
+  </div>
+</div>
+</body>
+</html>

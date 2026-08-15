@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自动任务 · 设计稿 F（左账号右详情）</title>
+<style>
+  :root{
+    --bg:#1a1d22; --bg-panel:#23272e; --bg-subtle:#2c2e34; --bg-active:rgba(216,177,106,.12);
+    --border:#3a3f49; --border-strong:#565d6b;
+    --text:#e8e6df; --text-2:#9b9688; --text-3:#6d6a5e;
+    --gold:#d8b16a; --gold-strong:#a97f2f;
+    --ok:#9fb56f; --warn:#c98f4e; --err:#b05b53;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font:13px "Microsoft YaHei","PingFang SC",sans-serif;padding:26px}
+  .page{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .top{display:flex;align-items:center;gap:10px}
+  .diamond{width:13px;height:13px;border:1px solid var(--gold);transform:rotate(45deg);flex-shrink:0;background:rgba(216,177,106,.15)}
+  .top b{font-size:18px;letter-spacing:2px}
+  .top small{margin-left:auto;color:var(--text-3);font-size:11px}
+
+  .body{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+
+  /* 左：调度 + 账号列表 */
+  .panel{background:var(--bg-panel);border:1px solid var(--border);padding:16px}
+  .ph{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .ph .diamond{width:10px;height:10px}
+  .ph b{font-size:13px;letter-spacing:1px}
+  .ph small{margin-left:auto;color:var(--text-3);font-size:10.5px}
+  .row{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .row label{flex:1;font-size:12px;color:var(--text-2)}
+  .wds{display:flex;gap:4px}
+  .wd{width:24px;height:24px;line-height:24px;text-align:center;font-size:11px;border:1px solid var(--border);color:var(--text-3);cursor:pointer;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px)}
+  .wd.on{border-color:var(--gold-strong);color:var(--gold);background:var(--bg-active)}
+  .time{background:var(--bg-subtle);border:1px solid var(--border);color:var(--gold);font-family:var(--mono);font-size:13px;padding:6px 10px;letter-spacing:1px;outline:none;width:96px}
+  .sw{width:30px;height:14px;border:1px solid var(--border-strong);position:relative;cursor:pointer;clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);flex-shrink:0}
+  .sw::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;background:var(--border-strong)}
+  .sw.on{background:rgba(216,177,106,.25);border-color:var(--gold-strong)}
+  .sw.on::after{left:17px;background:var(--gold)}
+
+  .acc-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .acc{display:flex;align-items:center;gap:8px;border:1px solid var(--border);padding:9px 11px;cursor:pointer;font-size:12.5px}
+  .acc:hover{border-color:var(--gold-strong)}
+  .acc.sel{background:var(--bg-active);border-color:var(--gold-strong);border-left:2px solid var(--gold-strong)}
+  .acc .idx{font-family:var(--mono);font-size:10px;color:var(--gold);width:16px;text-align:center}
+  .acc b{flex:1;font-size:12.5px}
+  .acc small{color:var(--text-3);font-size:10px;font-family:var(--mono)}
+  .acc .x{cursor:pointer;color:var(--text-3)}
+  .acc .x:hover{color:var(--err)}
+  .add{border:1px dashed var(--border-strong);background:none;color:var(--text-2);padding:8px;font-size:12px;cursor:pointer;margin-top:6px}
+  .add:hover{color:var(--gold);border-color:var(--gold-strong)}
+
+  /* 右：选中账号的方案配置 */
+  .ph2{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .ph2 .diamond{width:10px;height:10px}
+  .ph2 b{font-size:13.5px;letter-spacing:1px}
+  .ph2 small{margin-left:auto;color:var(--text-3);font-size:11px}
+  .frow{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .frow:last-child{border:none}
+  .frow label{flex:1;font-size:12.5px;color:var(--text-2)}
+  .frow label small{display:block;font-size:10.5px;color:var(--text-3);margin-top:2px}
+  .sel{background:var(--bg-subtle);border:1px solid var(--border-strong);color:var(--text);padding:7px 12px;font-size:12px;min-width:220px;outline:none}
+  .tasks-preview{font-family:var(--mono);font-size:11px;color:var(--text-2);background:var(--bg-subtle);border:1px solid var(--border);padding:10px 12px;line-height:1.8}
+  .tasks-preview .t{color:var(--gold)}
+  .btn{border:1px solid var(--border-strong);background:var(--bg-subtle);color:var(--text);padding:6px 14px;font-size:12px;cursor:pointer}
+  .btn:hover{border-color:var(--gold-strong);color:var(--gold)}
+  .execbar{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+  .linkstart{margin-left:auto;background:rgba(216,177,106,.18);border:1px solid var(--gold-strong);color:var(--gold);font-size:14px;font-weight:700;padding:9px 30px;cursor:pointer;letter-spacing:2px;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+  .note{font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><span class="diamond"></span><b>自动任务 · 每日长草</b><small>左：账号清单 · 右：该账号的方案配置</small></div>
+
+  <div class="body">
+    <!-- 左：调度 + 账号列表 -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel">
+        <div class="ph"><span class="diamond"></span><b>调度</b><small>星期 × 时间</small></div>
+        <div class="row"><label>启用</label><span class="sw on"></span></div>
+        <div class="row"><label>星期</label><div class="wds"><span class="wd on">一</span><span class="wd on">二</span><span class="wd on">三</span><span class="wd on">四</span><span class="wd on">五</span><span class="wd on">六</span><span class="wd on">日</span></div></div>
+        <div class="row"><label>时间</label><input class="time" value="06:30"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="diamond"></span><b>账号</b><small>顺序 = 执行顺序</small></div>
+        <div class="acc-list">
+          <div class="acc sel"><span class="idx">1</span><b>账号A（官服）</b><small>日常六件套 · 5 项</small><span class="x">✕</span></div>
+          <div class="acc"><span class="idx">2</span><b>账号B（官服）</b><small>基建 · 2 项</small><span class="x">✕</span></div>
+          <div class="acc"><span class="idx">3</span><b>账号C（B服）</b><small>活动图 · 3 项</small><span class="x">✕</span></div>
+        </div>
+        <button class="add">＋ 添加账号</button>
+      </div>
+    </div>
+
+    <!-- 右：选中账号配置 -->
+    <div class="panel">
+      <div class="ph2"><span class="diamond"></span><b>账号A（官服） · 方案配置</b><small>该账号独立的任务与参数</small></div>
+      <div class="frow">
+        <label>执行方案<small>从任务编排保存的方案中选择</small></label>
+        <select class="sel"><option>日常六件套（5 项）</option><option>基建（2 项）</option><option>活动图（3 项）</option></select>
+      </div>
+      <div class="frow">
+        <label>任务预览<small>方案快照 · 执行时按此</small></label>
+        <div class="tasks-preview" style="flex:1">
+          <span class="t">1.</span> StartUp 开始唤醒<br>
+          <span class="t">2.</span> Infrast 基建换班<br>
+          <span class="t">3.</span> Mall 信用购物（一日只执行一次）<br>
+          <span class="t">4.</span> Fight 刷理智 CE-6 · 战斗次数不限<br>
+          <span class="t">5.</span> Award 领取奖励
+        </div>
+      </div>
+      <div class="frow">
+        <label>参数微调<small>可选：不覆盖方案快照时留空</small></label>
+        <button class="btn">展开任务参数…</button>
+      </div>
+      <div class="execbar">
+        <span style="font-size:11px;color:var(--text-3)">执行：3 个账号 · 按序</span>
+        <button class="linkstart">▶ LINK START</button>
+      </div>
+      <p class="note">点击左侧账号切换配置；每个账号的方案独立快照。「参数微调」可在不修改原方案的前提下调整该账号的个别参数。</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
