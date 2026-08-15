@@ -166,7 +166,7 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | `backend/tests/test_notify.py` | M6 外部通知：渠道消息构造（Server酱 URL/钉钉加签/自定义模板与默认 JSON）+ 发送主流程（无配置空返回/事件开关/多渠道+禁用过滤/HTTP 错误与异常落库）+ API（测试发送/记录/重发 404） | ✅ 已落地（11 用例） |
 | `frontend/scripts/verify-ui.mjs` | R4/R6/R7/R11：L3 浏览器自动化回归（首页/设备 CRUD+连接终态/检测面板/占位页/控制台错误） | ✅ 已落地（27 断言） |
 
-> 全量 pytest 实测：**278 passed**（2026-08-15）。用例数含参数化展开；新增模块已登记本表。
+> 全量 pytest 实测：**283 passed**（2026-08-15）。用例数含参数化展开；新增模块已登记本表。
 
 ---
 
