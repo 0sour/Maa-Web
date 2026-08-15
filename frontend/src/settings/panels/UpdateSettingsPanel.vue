@@ -18,6 +18,7 @@ const mirror = reactive({
   update_source: 'github',
   mirror_prefixes: '',
   mirrorchyan_cdk: '',
+  http_proxy: '',
 })
 const cdkMasked = ref('')
 const cdkConfigured = ref(false)
@@ -122,6 +123,7 @@ async function load() {
     mirror.update_source = s.update_source
     mirror.mirror_prefixes = s.mirror_prefixes
     mirror.mirrorchyan_cdk = s.mirrorchyan_cdk
+    mirror.http_proxy = s.http_proxy
     cdkMasked.value = s.mirrorchyan_cdk_masked
     cdkConfigured.value = s.mirrorchyan_cdk_configured
     cdkMessage.value = s.mirrorchyan_cdk_message
@@ -142,6 +144,7 @@ async function save() {
     const s = await settingsApi.saveMirror({
       update_source: mirror.update_source,
       mirror_prefixes: mirror.mirror_prefixes,
+      http_proxy: mirror.http_proxy,
       ...(mirror.mirrorchyan_cdk !== '' ? { mirrorchyan_cdk: mirror.mirrorchyan_cdk } : {}),
     })
     mirror.mirrorchyan_cdk = s.mirrorchyan_cdk
@@ -212,6 +215,11 @@ onMounted(load)
           <span v-for="p in effectivePrefixes" :key="p" class="chip">{{ p }}</span>
           <span v-if="!effectivePrefixes.length" class="hint dim">官方直连（未配置镜像）</span>
         </div>
+      </div>
+      <div class="f-row f-col">
+        <label class="f-label">HTTP 代理 <small>可选</small></label>
+        <input v-model="mirror.http_proxy" placeholder="http://192.168.10.110:7890" spellcheck="false" />
+        <p class="hint">GitHub 官方直连不通时可填代理地址（如 NAS 上 clash 的 7890 端口）；留空 = 直连。对版本查询与引擎包下载均生效。</p>
       </div>
     </template>
 

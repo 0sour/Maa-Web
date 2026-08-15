@@ -27,6 +27,7 @@ _DEFAULTS: dict = {
     "mirrorchyan_cdk": "",  # Mirror酱 CDK（对齐 MAA 客户端下载源）
     "mirrorchyan_cdk_expired_time": 0,  # unix 秒；0 = 未检查过
     "mirrorchyan_sp_id": "",  # 本机唯一标识（首次生成并持久化，供 API 使用）
+    "http_proxy": "",  # HTTP 代理（如 http://192.168.10.110:7890，clash 场景）；空 = 直连
     "adb_path": "",  # ADB 可执行文件路径（设置页连接设置，热更新覆盖 MAAWEB_ADB_PATH）
 }
 
@@ -94,6 +95,11 @@ def mirrorchyan_cdk() -> str:
 
 def mirrorchyan_sp_id() -> str:
     return str(load().get("mirrorchyan_sp_id", "") or "")
+
+
+def http_proxy() -> str:
+    """HTTP 代理（clash 等场景）；空字符串 = 直连。"""
+    return str(load().get("http_proxy", "") or "").strip()
 
 
 def update_source() -> str:

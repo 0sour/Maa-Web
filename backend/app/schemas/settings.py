@@ -32,6 +32,8 @@ class MirrorSourceSettings(BaseModel):
     mirrorchyan_cdk_remaining_days: float | None = None
     # 上次检查结果提示（如「已过期」「剩余 12.3 天」）；空 = 无记录
     mirrorchyan_cdk_message: str = ""
+    # HTTP 代理（clash 等场景，如 http://192.168.10.110:7890）；空 = 直连
+    http_proxy: str = ""
 
 
 class MirrorSourceUpdate(BaseModel):
@@ -43,6 +45,8 @@ class MirrorSourceUpdate(BaseModel):
     mirror_prefixes: str | None = None
     # MirrorChyan CDK。None = 不修改；"" = 清除。
     mirrorchyan_cdk: str | None = None
+    # HTTP 代理。None = 不修改；"" = 清除（恢复直连）。
+    http_proxy: str | None = None
 
 
 class MirrorCdkCheckPayload(BaseModel):

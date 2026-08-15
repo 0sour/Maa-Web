@@ -164,6 +164,12 @@ def _set_mc_query_error(msg: str) -> None:
     _mc_query_error = msg
 
 
+def _client_proxy() -> str | None:
+    """当前 HTTP 代理（设置页「更新设置」配置，clash 等场景）；空 = 直连。"""
+    p = runtime_settings.http_proxy()
+    return p or None
+
+
 async def check_mirrorchyan_cdk(cdk: str) -> dict:
     """调用 MirrorChyan API 校验 CDK 并持久化有效期，返回诊断结果。
 
@@ -189,7 +195,7 @@ async def check_mirrorchyan_cdk(cdk: str) -> dict:
         async with httpx.AsyncClient(
             timeout=settings.maa_resource_api_timeout,
             headers={"User-Agent": _UA},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             resp = await client.get(url)
             data = resp.json()
@@ -479,7 +485,7 @@ async def remote_latest() -> dict | None:
         async with httpx.AsyncClient(
             timeout=settings.maa_resource_api_timeout,
             headers={"User-Agent": _UA, "Accept": "application/vnd.github+json"},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             rel = await _get_first_json(client, await pick_fastest_urls(_GITHUB_API, client))
     except Exception as exc:  # noqa: BLE001 - network/binding surface
@@ -501,7 +507,7 @@ async def remote_latest() -> dict | None:
         async with httpx.AsyncClient(
             timeout=settings.maa_resource_api_timeout,
             headers={"User-Agent": _UA},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             urls = await pick_fastest_urls(raw_url, client)
     except Exception as exc:  # noqa: BLE001 - keep local state usable
@@ -562,7 +568,7 @@ async def remote_latest_mirrorchyan() -> dict | None:
         async with httpx.AsyncClient(
             timeout=settings.maa_resource_api_timeout,
             headers={"User-Agent": _UA},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             resp = await client.get(url)
             data = resp.json()
@@ -832,7 +838,7 @@ async def _download(remote: dict) -> None:
                 pool=30.0,
             ),
             headers={"User-Agent": _UA},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             total = remote.get("size") or 0
             downloaded = 0
@@ -1021,7 +1027,7 @@ async def _fetch_dynamic_tree() -> tuple[str, dict[str, str]] | None:
         async with httpx.AsyncClient(
             timeout=settings.maa_resource_api_timeout,
             headers={"User-Agent": _UA, "Accept": "application/vnd.github+json"},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             tree = await _get_first_json(client, await pick_fastest_urls(_DYNAMIC_TREE_URL, client))
     except Exception as exc:  # noqa: BLE001 - network/binding surface
@@ -1079,7 +1085,7 @@ async def _apply_diff(
         connect=15.0, read=settings.maa_resource_download_timeout, write=15.0, pool=15.0
     )
     async with httpx.AsyncClient(
-        timeout=timeout, headers={"User-Agent": _UA}, follow_redirects=True
+        timeout=timeout, headers={"User-Agent": _UA}, follow_redirects=True, proxy=_client_proxy()
     ) as client:
         bases = _candidate_urls(_DYNAMIC_RAW)
         if to_download:
@@ -1135,7 +1141,7 @@ async def _apply_full(res_dir: Path, old_manifest: dict) -> None:
             pool=30.0,
         )
         async with httpx.AsyncClient(
-            timeout=timeout, headers={"User-Agent": _UA}, follow_redirects=True
+            timeout=timeout, headers={"User-Agent": _UA}, follow_redirects=True, proxy=_client_proxy()
         ) as client:
             last_err: Exception | None = None
             for url in await pick_fastest_urls(_DYNAMIC_TARBALL, client):
@@ -1302,7 +1308,7 @@ async def _sync_dynamic_mirrorchyan() -> dict:
         async with httpx.AsyncClient(
             timeout=settings.maa_resource_api_timeout,
             headers={"User-Agent": _UA},
-            follow_redirects=True,
+            follow_redirects=True, proxy=_client_proxy(),
         ) as client:
             resp = await client.get(url)
             data = resp.json()
@@ -1363,7 +1369,7 @@ async def _mirrorchyan_worker(
             pool=30.0,
         )
         async with httpx.AsyncClient(
-            timeout=timeout, headers={"User-Agent": _UA}, follow_redirects=True
+            timeout=timeout, headers={"User-Agent": _UA}, follow_redirects=True, proxy=_client_proxy()
         ) as client:
             async with client.stream("GET", download_url) as resp:
                 resp.raise_for_status()

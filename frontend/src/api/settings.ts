@@ -22,6 +22,8 @@ export interface MirrorSourceSettings {
   mirrorchyan_cdk_remaining_days: number | null
   /** 上次检查提示（如「已过期」「剩余 12.3 天」） */
   mirrorchyan_cdk_message: string
+  /** HTTP 代理（clash 等场景）；空 = 直连 */
+  http_proxy: string
 }
 
 export interface MirrorSourceUpdate {
@@ -31,6 +33,8 @@ export interface MirrorSourceUpdate {
   mirror_prefixes?: string
   /** MirrorChyan CDK；空字符串 = 清除 */
   mirrorchyan_cdk?: string
+  /** HTTP 代理；空字符串 = 清除（恢复直连） */
+  http_proxy?: string
 }
 
 export interface MirrorCdkCheckResult {

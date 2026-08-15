@@ -88,6 +88,7 @@ async def read_mirror_settings() -> MirrorSourceSettings:
         mirrorchyan_cdk_expired_time=expired_time,
         mirrorchyan_cdk_remaining_days=remaining,
         mirrorchyan_cdk_message=message,
+        http_proxy=runtime_settings.http_proxy(),
     )
 
 
@@ -112,6 +113,8 @@ async def update_mirror_settings(payload: MirrorSourceUpdate) -> MirrorSourceSet
             # CDK 被清空或确实变更 → 清除旧有效期，下次 check 重新获取。
             # 未变更（如前端回显后原样保存）则保留既有有效期。
             kw["mirrorchyan_cdk_expired_time"] = 0
+    if payload.http_proxy is not None:
+        kw["http_proxy"] = payload.http_proxy.strip()
     if kw:
         runtime_settings.update(**kw)
     return await read_mirror_settings()

@@ -1198,3 +1198,50 @@ class TestUpdateQueryFailureState:
         assert "linux" in result["error"].lower()
         assert resource_mgr._UPDATE["stage"] == "error"
         assert resource_mgr._UPDATE["error"] == result["error"]
+
+
+class TestHttpProxy:
+    """HTTP 代理（clash 场景）透传到 httpx.AsyncClient。"""
+
+    async def test_async_client_gets_proxy(self, monkeypatch, res_env):
+        captured: dict = {}
+
+        class _C:
+            def __init__(self, **kw):
+                captured.update(kw)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                pass
+
+            async def get(self, url):
+                return SimpleNamespace(json=lambda: {"code": 0, "data": {"cdk_expired_time": 5_000_000_000}})
+
+        monkeypatch.setattr(runtime_settings, "http_proxy", lambda: "http://proxy:7890")
+        monkeypatch.setattr(resource_mgr.httpx, "AsyncClient", _C)
+        result = await resource_mgr.check_mirrorchyan_cdk("A" * 24)
+        assert result["ok"] is True
+        assert captured.get("proxy") == "http://proxy:7890"
+
+    async def test_no_proxy_by_default(self, monkeypatch, res_env):
+        captured: dict = {}
+
+        class _C:
+            def __init__(self, **kw):
+                captured.update(kw)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                pass
+
+            async def get(self, url):
+                return SimpleNamespace(json=lambda: {"code": 0, "data": {"cdk_expired_time": 5_000_000_000}})
+
+        monkeypatch.setattr(runtime_settings, "http_proxy", lambda: "")
+        monkeypatch.setattr(resource_mgr.httpx, "AsyncClient", _C)
+        await resource_mgr.check_mirrorchyan_cdk("A" * 24)
+        assert captured.get("proxy") is None
