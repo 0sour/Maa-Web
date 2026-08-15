@@ -38,6 +38,7 @@ def _reset_globals():
     resource_mgr.operator_list.cache_clear()
     resource_mgr.recruit_tags.cache_clear()
     resource_mgr.roguelike_core_chars.cache_clear()
+    resource_mgr._set_mc_query_error("")
     yield
 
 
@@ -1178,3 +1179,22 @@ class TestUpdateQueryFailureState:
         assert result["error"] is not None
         assert "官方最新版本" in result["error"]
         assert resource_mgr._UPDATE["stage"] == "error"
+
+    async def test_mirrorchyan_8001_writes_platform_hint(self, monkeypatch, res_env):
+        """8001（资源不存在）：错误必须点名「Linux 无引擎包 + 改用 GitHub 源」，
+        而不是泛化的「查询失败」（D-08 实机验证：Mirror酱 MAA 资源仅 Windows）。"""
+        monkeypatch.setattr(resource_mgr.get_settings(), "maa_resource_platform", "linux-x86_64")
+        monkeypatch.setattr(runtime_settings, "update_source", lambda: "mirrorchyan")
+        monkeypatch.setattr(runtime_settings, "mirrorchyan_cdk", lambda: "A" * 24)
+        monkeypatch.setattr(runtime_settings, "mirrorchyan_sp_id", lambda: "spid-1")
+        payload = {"code": 8001, "msg": "resource not found"}
+        monkeypatch.setattr(
+            resource_mgr.httpx, "AsyncClient",
+            lambda *a, **k: _MirrorChyanClient(payload, b""),
+        )
+        result = await resource_mgr.update()
+        assert result["stage"] == "error"
+        assert "GitHub" in result["error"]
+        assert "linux" in result["error"].lower()
+        assert resource_mgr._UPDATE["stage"] == "error"
+        assert resource_mgr._UPDATE["error"] == result["error"]

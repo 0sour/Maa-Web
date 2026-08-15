@@ -154,6 +154,16 @@ _MIRRORCHYAN_ERRORS: dict[int, str] = {
 }
 
 
+# MirrorChyan 最近一次查询失败原因（update() 写入 _UPDATE 供前端展示真实错误）
+_mc_query_error: str = ""
+
+
+def _set_mc_query_error(msg: str) -> None:
+    """记录 MirrorChyan 查询失败原因；成功后清空。"""
+    global _mc_query_error
+    _mc_query_error = msg
+
+
 async def check_mirrorchyan_cdk(cdk: str) -> dict:
     """调用 MirrorChyan API 校验 CDK 并持久化有效期，返回诊断结果。
 
@@ -519,10 +529,16 @@ async def remote_latest_mirrorchyan() -> dict | None:
     注意：与 GitHub 源不同，Mirror酱 的 os/arch 参数取
     `os=win|linux` + `arch=x64|arm64|x86_64|aarch64`；size 优先取响应的
     `filesize`，缺失时由 _download 从响应头 content-length 计算进度。
+
+    已知限制（2026-08 实机验证）：Mirror酱的 MAA 资源仅发布 Windows 应用
+    本体（Linux 查询返回 8001），MaaResource 资源又只含 resource/ 无引擎库，
+    因此 Linux 部署下 Mirror酱源无法下载引擎包——失败原因通过
+    _set_mc_query_error 记录，update() 据此给前端明确提示。
     """
     cdk = runtime_settings.mirrorchyan_cdk()
     if not cdk:
         log.warning("MirrorChyan 引擎包更新：未配置 CDK")
+        _set_mc_query_error("未配置 Mirror酱 CDK（设置页 → 更新设置 → 镜像下载源）")
         return None
 
     settings = get_settings()
@@ -552,6 +568,7 @@ async def remote_latest_mirrorchyan() -> dict | None:
             data = resp.json()
     except Exception as exc:  # noqa: BLE001 - network/binding surface
         log.warning("MirrorChyan 引擎包更新查询失败: %s", exc)
+        _set_mc_query_error(f"无法连接 Mirror酱服务（{exc}）")
         return None
 
     code = int(data.get("code") or 0)
@@ -560,6 +577,17 @@ async def remote_latest_mirrorchyan() -> dict | None:
             "MirrorChyan 引擎包更新被拒 code=%s msg=%s",
             code, data.get("msg") or _MIRRORCHYAN_ERRORS.get(code, "未知错误"),
         )
+        if code == 8001:
+            # Mirror酱 MAA 资源无 Linux 包（仅 Windows GUI 本体）；引擎包请走 GitHub 源
+            _set_mc_query_error(
+                f"Mirror酱无当前平台（{settings.maa_resource_platform}）的 MAA 引擎包资源："
+                "Mirror酱仅发布 Windows 应用本体。引擎包请改用 GitHub 源"
+                "（可在更新设置配置 ghproxy 镜像加速）"
+            )
+        else:
+            _set_mc_query_error(
+                _MIRRORCHYAN_ERRORS.get(code) or str(data.get("msg") or "Mirror酱请求失败")
+            )
         return None
 
     d = data.get("data") or {}
@@ -570,6 +598,7 @@ async def remote_latest_mirrorchyan() -> dict | None:
         return {"tag": current_version, "asset": "", "url": "", "urls": [], "size": 0, "up_to_date": True}
     if not download_url:
         log.warning("MirrorChyan 引擎包未返回下载地址")
+        _set_mc_query_error("Mirror酱未返回下载地址，请稍后重试")
         return None
     tag = version_name or "latest"
     # 缓存文件名取 URL 末尾（含 .zip/.tar.gz），避免 tag 为日期/任意格式
@@ -609,10 +638,13 @@ async def update() -> dict:
                 # 写入 _UPDATE 供 /resources/status 轮询可见（否则前端误显示「已更新」）
                 _UPDATE.update(
                     stage="error",
-                    error="Mirror酱引擎包查询失败（未配置 CDK / CDK 无效 / 网络不可达），"
-                          "请检查设置页更新源与 CDK 有效性",
+                    error=_mc_query_error or (
+                        "Mirror酱引擎包查询失败（未配置 CDK / CDK 无效 / 网络不可达），"
+                        "请检查设置页更新源与 CDK 有效性"
+                    ),
                 )
                 return dict(_UPDATE)
+            _set_mc_query_error("")
             if remote.get("up_to_date"):
                 return {**dict(_UPDATE), "stage": "idle", "error": None}
         else:

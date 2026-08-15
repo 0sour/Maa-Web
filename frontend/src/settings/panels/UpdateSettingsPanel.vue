@@ -195,7 +195,7 @@ onMounted(load)
           @click="mirror.update_source = 'mirrorchyan'"
         >
           <b>Mirror酱（MirrorChyan）</b>
-          <span>MAA 高速更新源 · 需 CDK</span>
+          <span>MAA 高速更新源 · 需 CDK · Linux 部署请用 GitHub 源</span>
         </button>
       </div>
     </div>
@@ -234,6 +234,7 @@ onMounted(load)
           <button class="btn" :disabled="checking" @click="checkCdk">{{ checking ? '检查中…' : '⌁ 检查有效期' }}</button>
         </div>
         <p class="hint">CDK 默认掩码显示；点击右侧眼睛查看完整。修改后需重新「检查有效期」刷新到期时间。</p>
+        <p class="hint warn">⚠️ Mirror酱的 MAA 资源仅发布 Windows 应用本体，Linux（NAS）部署无对应引擎包——请改用 GitHub 官方源（可配 ghproxy 镜像加速）。</p>
       </div>
       <div class="cdk-state">
         <span class="st" :class="cdkCls(cdkStatus)"><span class="dot"></span>CDK {{ cdkStateText }}</span>
