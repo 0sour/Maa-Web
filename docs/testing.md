@@ -159,14 +159,14 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | `backend/tests/test_tasks_api.py` | R13/R14：run/stop/status/logs 路由 + 409/422/404 语义 + 历史日志按天分组（仅今天之前/时区序列化）+ 当天日志接口（/logs/today） | ✅ 已落地（10 用例） |
 | `backend/tests/test_resource_mgr.py` | R15/R16：引擎包状态/远端查询/下载-解压-原子替换全流程（zip + linux tar.gz）+ GitHub 镜像候选测速 + MirrorChyan（CDK 检查/增量包/os-arch/up_to_date）+ 动态资源同步（diff/full）+ item_index 材料表（可刷过滤）+ battle_data 干员表 + recruitment Tags + 肉鸽开局干员 + stage_codes 可导航过滤（导航任务/主线格式/活动缺失排除） | ✅ 已落地（58 用例） |
 | `backend/tests/test_resources_api.py` | R15：resources status/update/sync/items/operators/recruit-tags/roguelike-core-chars 路由 + 失败上报 | ✅ 已落地（7 用例） |
-| `backend/tests/test_settings_api.py` | R16：镜像源设置 GET/PUT（update_source / CDK 保存-回显-脱敏）/ 有效期检查 / CDK 未变更保留有效期回归 + 通用设置分组（GET/PUT/upsert/删除/422）+ logs-export zip + geoip（IP 定位成功/服务失败 502） | ✅ 已落地（16 用例） |
+| `backend/tests/test_settings_api.py` | R16：镜像源设置 GET/PUT（update_source / CDK 保存-回显-脱敏）/ 有效期检查 / CDK 未变更保留有效期回归 + 通用设置分组（GET/PUT/upsert/删除/422）+ logs-export zip + geoip（IP 定位成功/服务失败 502）+ proxy-test（代理连通成功/失败） | ✅ 已落地（18 用例） |
 | `backend/tests/test_copilot_mgr.py` | R18：作业站代码解析（prts:// / maa:// / 简写 / 纯数字）+ 作业/作业集拉取 + 文件名安全 + 关卡名映射 + SSS 作业（type=SSS 免 opers 校验 + stage_name/strategy 细分校验）+ job_type | ✅ 已落地（24 用例） |
 | `backend/tests/test_schedules_api.py` | M6 定时执行：CRUD 全流程 + 校验（空星期/空方案/坏时间/设备 404）+ 立即试跑（在线成功/离线 409/不存在 404） | ✅ 已落地（4 用例） |
 | `backend/tests/test_scheduler.py` | M6 调度器：星期×时间匹配触发 + 时间/星期/禁用不匹配跳过 + 同分钟防重 + last_run_at 落库 + 触发日志持久化 | ✅ 已落地（5 用例） |
 | `backend/tests/test_notify.py` | M6 外部通知：渠道消息构造（Server酱 URL/钉钉加签/自定义模板与默认 JSON）+ 发送主流程（无配置空返回/事件开关/多渠道+禁用过滤/HTTP 错误与异常落库）+ API（测试发送/记录/重发 404） | ✅ 已落地（11 用例） |
 | `frontend/scripts/verify-ui.mjs` | R4/R6/R7/R11：L3 浏览器自动化回归（首页/设备 CRUD+连接终态/检测面板/占位页/控制台错误） | ✅ 已落地（27 断言） |
 
-> 全量 pytest 实测：**283 passed**（2026-08-15）。用例数含参数化展开；新增模块已登记本表。
+> 全量 pytest 实测：**285 passed**（2026-08-15）。用例数含参数化展开；新增模块已登记本表。
 
 ---
 

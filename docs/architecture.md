@@ -336,6 +336,7 @@ Setting       (S-06/09) key, value  (通知通道 / GPU 加速 / 上传 ID 等)
 | PUT | `/api/v1/settings/{group}` | 通用设置分组保存（key 前缀 upsert，传 None 删除） |
 | GET | `/api/v1/settings/logs-export` | 打包日志目录为 zip 下载（问题反馈导出） |
 | GET | `/api/v1/settings/geoip` | IP 定位（ip-api.com，NAS 出口 IP → 经纬度/城市，主题「按日出日落」兜底） |
+| POST | `/api/v1/settings/proxy-test` | 测试 HTTP 代理连通性（经代理访问 GitHub API，返回耗时/错误） |
 | GET | `/api/v1/notifications/logs` | 外部通知发送记录（notify_logs，倒序） |
 | POST | `/api/v1/notifications/test` | 测试发送（按当前 notify 配置逐渠道发一条） |
 | POST | `/api/v1/notifications/logs/{id}/resend` | 重发某条记录（待真实渠道验证后启用） |
