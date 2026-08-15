@@ -40,8 +40,11 @@ LABEL org.opencontainers.image.title="Maa-Web Nginx (static + reverse proxy)" \
 #    - /var/cache/nginx, /var/run need to be writable by nginx user
 RUN set -eux; \
     # Writable dirs for non-root nginx
-    mkdir -p /var/cache/nginx /var/run /tmp/nginx_body /tmp/nginx_proxy; \
+    mkdir -p /var/cache/nginx /run /var/run /tmp/nginx_body /tmp/nginx_proxy; \
     chown -R nginx:nginx /var/cache/nginx /var/run /tmp/nginx_body /tmp/nginx_proxy /etc/nginx/conf.d; \
+    # /var/run is a symlink → ../run; chown -R only touched the link itself,
+    # nginx.conf hardcodes pid /run/nginx.pid so /run itself must be writable.
+    chown nginx:nginx /run; \
     # Remove default config
     rm -f /etc/nginx/conf.d/default.conf
 
