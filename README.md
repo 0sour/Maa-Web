@@ -81,6 +81,7 @@ npm run dev
 cp .env.example .env
 
 # 2. 编辑 .env：至少修改 MAAWEB_SECRET_KEY 为你自己的强随机串
+#    注：当前版本密钥仅启动检查、不强制校验；公网暴露需自行加反代（见 docs/DEPLOY.md §8）
 #    Windows PowerShell 用：copy .env.example .env
 
 # 3. 一键构建 + 启动

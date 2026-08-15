@@ -27,10 +27,10 @@ Maa-Web 以 3 容器部署：`nginx`（前端静态 + 反向代理）→ `api`�
 cp .env.example .env
 
 # 2. 编辑 .env，至少确认：
-#    MAAWEB_SECRET_KEY    改为你自己的强随机串（局域网暴露时务必设置）
+#    MAAWEB_SECRET_KEY    强随机串（当前版本仅启动检查、不强制校验，见 §8）
 #    MAAWEB_RESOURCE_PLATFORM  按上表设 linux-x86_64（ARM 可留默认）
 #    TZ                   时区（默认 Asia/Shanghai，日志/定时/主题均依赖）
-#    MAAWEB_EXPOSE_PORT   对外端口（默认 8080）
+#    MAAWEB_EXPOSE_PORT   对外端口（默认 8080；被占用时改如 18080）
 
 # 3. 构建并启动
 docker compose up -d --build
@@ -81,15 +81,22 @@ docker compose up -d            # 应用升级
 | 现象 | 处理 |
 |------|------|
 | 首页引擎「未就绪」 | 未下载引擎包或平台不匹配：检查 `MAAWEB_RESOURCE_PLATFORM` 与 NAS 架构一致，重下引擎包 |
+| 首次部署时 `/healthz/startup` 返回 503 | 正常：引擎包未下载属「未完全就绪」；`/healthz/ready` 返回 200 即可访问 UI 下载引擎包 |
+| api 容器启动报 `InvalidRequestError: The asyncio extension requires an async driver` | `docker-compose.yml` 的 `DATABASE_URL` 必须以 `sqlite+aiosqlite:///` 开头（缺 `+aiosqlite` 前缀 SQLAlchemy 会走同步驱动） |
+| nginx 容器重启循环，报 `"map" directive is not allowed here` | `map` 指令只能出现在 http 上下文（conf.d 文件顶层），不能放在 `server {}` 内 |
+| nginx 容器重启循环，报 `open() "/run/nginx.pid" failed (13: Permission denied)` | 镜像内 `/run` 目录必须可写（`/var/run` 是符号链接，`chown -R` 不会到达 `/run` 本身）；用最新镜像 |
+| 构建报 `blob ...: operation not permitted`（btrfs 卷） | 构建缓存坏块：删除报错路径的 blob 文件，再 `docker builder prune -af` 重建索引后重试 |
 | `adb` 连接 `unauthorized` | 设备弹窗授权；真机需在「开发者选项」里撤销授权后重连 |
 | 任务时间/日志日期差 8 小时 | 容器时区未设：`.env` 配 `TZ=Asia/Shanghai` 后重建容器 |
 | 端口 8080 被占用 | `.env` 改 `MAAWEB_EXPOSE_PORT` |
 | 连不上 NAS 上模拟器 | 模拟器网络模式需「桥接/NAT 可达」；确认防火墙放行 adb 端口 |
 | 更新源走 GitHub 慢 | 「设置 → 更新设置」配置 ghproxy 镜像前缀或 MirrorChyan CDK |
 
+> 以上 api/nginx 报错均已在本项目 Docker 实机验证（Steam Deck / Debian 12 x86_64）中复现并修复，对应 commit 见仓库历史。
+
 ## 8. 架构与安全说明
 
 - `nginx` 容器：仅静态文件 + `/api`、`/ws` 反向代理，非 root（nginx 用户）
 - `api` 容器：非 root（UID 1000）、`cap_drop: ALL`、`no-new-privileges`
-- 单用户设计：`MAAWEB_SECRET_KEY` 即唯一访问凭据；**如暴露到公网，务必设置强密钥并自行加反代 HTTPS**
+- 单用户设计：`MAAWEB_SECRET_KEY` 目前仅作启动检查（空值时自动生成并打印到容器日志）；**API 尚未强制校验该密钥**（登录鉴权在 roadmap「安全加固」项，首期为基础 Token）。**如暴露到公网，务必自行加反代 HTTPS + 访问控制，不要依赖密钥**
 - 备份：只需备份 `maaweb-config` 卷（SQLite 单文件）+ 需要的 `maaweb-media`
