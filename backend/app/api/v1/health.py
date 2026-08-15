@@ -8,6 +8,10 @@ Three probes (per Staff-Engineer container specialist):
 Hard rules:
   LIVENESS MUST NEVER CHECK EXTERNAL DEPENDENCIES.
     (Otherwise a simulator disconnect triggers a restart cascade.)
+  READINESS MUST NOT CHECK ENGINE READINESS.
+    (Engine pack download itself goes through this API; a readiness gate on
+    the engine deadlocks first-boot — nginx waits for healthy, user can't
+    reach the UI to download the pack. Found in D-08 on-machine verification.)
 """
 from __future__ import annotations
 
@@ -95,6 +99,11 @@ async def health_startup(response: Response) -> HealthStatus:
 async def health_ready(response: Response) -> HealthStatus:
     """Readiness probe: should ingress route traffic to us?
 
+    首次部署语义（D-08 实机验证）：引擎包未下载（MAA Asst engine NOT
+    ready）时也必须路由流量 —— WebUI「识别资源包」正是通过本 API 下载
+    引擎包；若 ready 依赖引擎就绪，nginx 因 service_healthy 永不启动，
+    形成部署死锁。引擎状态仅作诊断信息（checks.engine_ready）。
+
     Fails when:
       - startup not passed yet
       - free memory < 256MB (risk of OOM on next MaaFW job)
@@ -103,20 +112,25 @@ async def health_ready(response: Response) -> HealthStatus:
     settings = get_settings()
     mem = _free_mem_mb()
     engine_ok = await _engine_ready_live()
+    startup_ok = bool(get_startup_status().get("dirs_created", False))
 
-    checks = {"startup_ok": engine_ok, "free_mem_mb": mem}
+    checks = {
+        "startup_ok": startup_ok,
+        "engine_ready": engine_ok,
+        "free_mem_mb": mem,
+    }
     mem_ok = mem == -1 or mem >= 256  # allow unknown (non-Linux) for local dev
-    all_ok = engine_ok and mem_ok
+    all_ok = startup_ok and mem_ok
 
     if not all_ok:
         response.status_code = http_status.HTTP_503_SERVICE_UNAVAILABLE
 
     message: str | None = None
     if not all_ok:
-        if not mem_ok:
-            message = "Free memory below 256MB — OOM risk; wait for GC or increase NAS swap."
+        if not startup_ok:
+            message = "Application startup not completed (data dirs missing)."
         else:
-            message = "MAA Asst engine not ready yet (download via /api/v1/resources/update)."
+            message = "Free memory below 256MB — OOM risk; wait for GC or increase NAS swap."
 
     return HealthStatus(
         status="ok" if all_ok else "degraded",
