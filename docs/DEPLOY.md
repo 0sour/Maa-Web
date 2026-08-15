@@ -85,6 +85,9 @@ docker compose up -d            # 应用升级
 | api 容器启动报 `InvalidRequestError: The asyncio extension requires an async driver` | `docker-compose.yml` 的 `DATABASE_URL` 必须以 `sqlite+aiosqlite:///` 开头（缺 `+aiosqlite` 前缀 SQLAlchemy 会走同步驱动） |
 | nginx 容器重启循环，报 `"map" directive is not allowed here` | `map` 指令只能出现在 http 上下文（conf.d 文件顶层），不能放在 `server {}` 内 |
 | nginx 容器重启循环，报 `open() "/run/nginx.pid" failed (13: Permission denied)` | 镜像内 `/run` 目录必须可写（`/var/run` 是符号链接，`chown -R` 不会到达 `/run` 本身）；用最新镜像 |
+| 引擎包已下载但引擎「未就绪」，日志报 `libatomic.so.1: cannot open shared object file` | backend 镜像缺 `libatomic1`（MaaCore 依赖）：用最新镜像重建 api（`docker compose up -d --build api`） |
+| 更新源选 Mirror酱（MirrorChyan）后引擎包下载失败（code 8001） | Mirror酱的 MAA 资源仅发布 Windows 应用本体，Linux（NAS）无对应包；引擎包请用 GitHub 源（可配 ghproxy 镜像或 HTTP 代理） |
+| GitHub 官方直连下载引擎包失败（HEAD 200 但 GET 中断） | 「更新设置 → HTTP 代理」填 clash 等代理地址（如 `http://<NAS IP>:7890`），或配置 ghproxy 镜像前缀 |
 | 构建报 `blob ...: operation not permitted`（btrfs 卷） | 构建缓存坏块：删除报错路径的 blob 文件，再 `docker builder prune -af` 重建索引后重试 |
 | `adb` 连接 `unauthorized` | 设备弹窗授权；真机需在「开发者选项」里撤销授权后重连 |
 | 任务时间/日志日期差 8 小时 | 容器时区未设：`.env` 配 `TZ=Asia/Shanghai` 后重建容器 |
