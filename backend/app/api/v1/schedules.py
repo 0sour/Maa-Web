@@ -19,7 +19,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
-from app.engine.scheduler import scheduler
 from app.engine.taskrunner import TaskQueueError, TaskRunner
 from app.models.device import Device
 from app.models.schedule import ScheduleJob

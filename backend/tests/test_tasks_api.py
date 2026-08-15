@@ -213,3 +213,48 @@ async def test_logs_today(client) -> None:
     # device_id 过滤
     resp2 = await client.get("/api/v1/tasks/logs/today", params={"device_id": 999})
     assert resp2.json()["count"] == 0 and resp2.json()["entries"] == []
+
+
+async def test_logs_source_filter(client) -> None:
+    """日志来源过滤：normal / auto（含 manual_auto），今天与历史一致。"""
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import update
+
+    from app.db.session import get_sessionmaker
+    from app.models.task import LogEntry
+
+    now = datetime.now(timezone.utc)
+    async with get_sessionmaker()() as s:
+        s.add(LogEntry(run_id=1, device_id=1, source="normal", level="info",
+                       message="普通任务日志", ts=now - timedelta(seconds=3)))
+        s.add(LogEntry(run_id=0, device_id=1, source="auto", level="info",
+                       message="自动任务日志", ts=now - timedelta(seconds=2)))
+        s.add(LogEntry(run_id=0, device_id=1, source="manual_auto", level="info",
+                       message="手动运行日志", ts=now - timedelta(seconds=1)))
+        old = LogEntry(run_id=0, device_id=1, source="auto", level="info",
+                       message="昨天的自动日志")
+        s.add(old)
+        await s.flush()
+        await s.execute(update(LogEntry).where(LogEntry.id == old.id).values(ts=now - timedelta(days=1)))
+        await s.commit()
+
+    # 今天：source=auto 含 manual_auto；行带 source 字段
+    resp = await client.get("/api/v1/tasks/logs/today", params={"source": "auto"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert [e["message"] for e in body["entries"]] == ["自动任务日志", "手动运行日志"]
+    assert all(e["source"] in ("auto", "manual_auto") for e in body["entries"])
+    resp = await client.get("/api/v1/tasks/logs/today", params={"source": "normal"})
+    assert [e["message"] for e in resp.json()["entries"]] == ["普通任务日志"]
+    resp = await client.get("/api/v1/tasks/logs/today", params={"source": "all"})
+    assert resp.json()["count"] == 3
+
+    # 历史：source=auto 只含昨天的自动日志
+    resp = await client.get("/api/v1/tasks/logs", params={"days": 7, "source": "auto"})
+    days = resp.json()["days"]
+    assert days and days[0]["date"] == (now - timedelta(days=1)).astimezone().strftime("%Y-%m-%d")
+    assert [e["message"] for e in days[0]["entries"]] == ["昨天的自动日志"]
+    resp = await client.get("/api/v1/tasks/logs", params={"days": 7, "source": "normal"})
+    msgs = [e["message"] for d in resp.json()["days"] for e in d["entries"]]
+    assert "昨天的自动日志" not in msgs

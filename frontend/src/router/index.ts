@@ -23,10 +23,14 @@ const router = createRouter({
       meta: { title: '设备管理 · Maa-Web' },
     },
     {
+      path: '/auto-tasks',
+      name: 'auto-tasks',
+      component: () => import('@/views/AutoTaskView.vue'),
+      meta: { title: '自动任务 · Maa-Web' },
+    },
+    {
       path: '/schedule',
-      name: 'schedule',
-      component: () => import('@/views/ScheduleView.vue'),
-      meta: { title: '定时执行 · Maa-Web' },
+      redirect: '/auto-tasks',
     },
     {
       path: '/toolbox',

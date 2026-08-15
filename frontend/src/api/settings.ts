@@ -49,12 +49,29 @@ export interface MirrorCdkCheckResult {
   remaining_days: number | null
 }
 
+/** 账号组条目（自动任务的账号来源；client_type 对齐 MAA 客户端） */
+export interface AccountGroupItem {
+  name: string
+  client_type: string
+}
+
 /** 通用设置分组（S-04/§4.4 设置中心，SQLite Setting 表） */
 export interface SettingsGroups {
   game: Record<string, unknown>
   connection: Record<string, unknown>
   ui: Record<string, unknown>
   notify: Record<string, unknown>
+  accounts: Record<string, unknown>
+}
+
+/** 读取账号组列表（accounts.list；解析失败返回空） */
+export function parseAccountGroups(groups: SettingsGroups | null): AccountGroupItem[] {
+  const raw = groups?.accounts?.list
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (x): x is AccountGroupItem =>
+      typeof x === 'object' && x !== null && typeof (x as AccountGroupItem).name === 'string',
+  )
 }
 
 /** IP 定位结果（/settings/geoip，NAS 出口 IP） */
@@ -91,5 +108,20 @@ export const settingsApi = {
   exportLogs: async (): Promise<Blob> => {
     const r = await http.get('/v1/settings/logs-export', { responseType: 'blob' })
     return r.data as Blob
+  },
+  /** 导出全部配置 zip（设备/方案/草稿/自动任务/设置/运行时设置，备份与迁移用） */
+  exportConfig: async (): Promise<Blob> => {
+    const r = await http.get('/v1/settings/export-config', { responseType: 'blob' })
+    return r.data as Blob
+  },
+  /** 导入配置（覆盖恢复；支持 zip 或 config.json；导入前后端自动备份当前配置） */
+  importConfig: async (file: File): Promise<{ ok: boolean; message: string; backup?: string }> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const r = await http.post<{ ok: boolean; message: string; backup?: string }>(
+      '/v1/settings/import-config',
+      fd,
+    )
+    return r.data
   },
 }

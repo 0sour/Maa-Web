@@ -72,7 +72,7 @@ class MirrorCdkCheckResult(BaseModel):
 # ── 通用设置分组（S-04/§4.4 设置中心） ──────────────────────
 
 # 支持的设置分组前缀（对齐 MAA 客户端设置窗口可落地分组）
-SETTING_GROUPS = ("game", "connection", "ui", "notify")
+SETTING_GROUPS = ("game", "connection", "ui", "notify", "accounts")
 
 
 class SettingsGroupsRead(BaseModel):
@@ -82,6 +82,7 @@ class SettingsGroupsRead(BaseModel):
     connection: dict[str, object] = Field(default_factory=dict)
     ui: dict[str, object] = Field(default_factory=dict)
     notify: dict[str, object] = Field(default_factory=dict)
+    accounts: dict[str, object] = Field(default_factory=dict)
 
 
 class SettingsGroupUpdate(BaseModel):

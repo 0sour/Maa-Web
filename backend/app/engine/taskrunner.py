@@ -24,6 +24,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.db.session import get_sessionmaker
 from app.engine import adb, asstproxy, eventbus
@@ -31,7 +33,6 @@ from app.models.device import Device
 from app.models.setting import Setting
 from app.models.task import LogEntry, TaskRun
 from app.schemas.task import TaskItem, TaskStatusRead
-from sqlalchemy import select
 
 log = logging.getLogger(__name__)
 
@@ -181,6 +182,10 @@ class TaskRunner:
         self._last_progress: datetime | None = None
         self._stall_last_fire: datetime | None = None
         self._stall_watch: asyncio.Task | None = None
+        # 执行上下文（start() 时覆盖）：日志来源 / 账号轮换
+        self._source = "normal"
+        self._client_type = "Official"
+        self._account_name: str | None = None
 
     @classmethod
     def get(cls, device_id: int) -> TaskRunner:
@@ -192,8 +197,21 @@ class TaskRunner:
 
     # ── Public API ────────────────────────────────────────────
 
-    async def start(self, device: Device, tasks: list[TaskItem]) -> TaskRun:
-        """Start a serial queue run. Raises TaskQueueError on preconditions."""
+    async def start(
+        self,
+        device: Device,
+        tasks: list[TaskItem],
+        *,
+        client_type: str | None = None,
+        account_name: str | None = None,
+        source: str = "normal",
+    ) -> TaskRun:
+        """Start a serial queue run. Raises TaskQueueError on preconditions.
+
+        client_type: StartUp/CloseDown 注入的客户端类型（默认设备配置）。
+        account_name: 自动任务账号轮换的目标账号（AccountSwitchTask）。
+        source: 日志来源 normal | auto | manual_auto（LogEntry 标记）。
+        """
         if self.status in (RUNNING, STOPPING):
             raise TaskQueueError("该设备已有任务正在运行，请先停止")
         if device.status != "online":
@@ -221,6 +239,10 @@ class TaskRunner:
         self.status = RUNNING
         self.error = None
         self.current = tasks[0].name if tasks else ""
+        # 执行上下文（日志来源 / 账号轮换透传）
+        self._source = source if source in ("normal", "auto", "manual_auto") else "normal"
+        self._client_type = client_type or getattr(device, "client_type", None) or "Official"
+        self._account_name = account_name
         # 停滞检测起点：任务开始计时，新任务链开始时重置
         self._device_name = device.name
         self._last_progress = datetime.now(timezone.utc)
@@ -305,7 +327,9 @@ class TaskRunner:
                 # Mall「一日只执行一次」：客户端本地状态（引擎不消费），当天已执行则关子项
                 if getattr(task, "entry", "") == "Mall":
                     await self._apply_mall_once_a_day(task)
-                ttype, params = asstproxy.to_asst_task(task)
+                ttype, params = asstproxy.to_asst_task(
+                    task, client_type=self._client_type, account_name=self._account_name
+                )
                 # Copilot 多作业：jobs 列表内勾选的作业逐个入队（对齐 MAA 客户端作业集）
                 sub_tasks = _expand_copilot_jobs(ttype, params)
                 if sub_tasks is not None and not sub_tasks:
@@ -377,6 +401,7 @@ class TaskRunner:
                 entry = LogEntry(
                     run_id=self.run_id or 0,
                     device_id=self.device_id,
+                    source=self._source,
                     level=level,
                     message=msg,
                 )
@@ -389,6 +414,7 @@ class TaskRunner:
                 self.device_id,
                 {
                     "id": entry.id,
+                    "source": self._source,
                     "level": level,
                     "message": msg,
                     "ts": datetime.now(timezone.utc).isoformat(),

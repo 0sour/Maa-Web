@@ -86,6 +86,8 @@ docker compose up -d            # 应用升级
 | nginx 容器重启循环，报 `"map" directive is not allowed here` | `map` 指令只能出现在 http 上下文（conf.d 文件顶层），不能放在 `server {}` 内 |
 | nginx 容器重启循环，报 `open() "/run/nginx.pid" failed (13: Permission denied)` | 镜像内 `/run` 目录必须可写（`/var/run` 是符号链接，`chown -R` 不会到达 `/run` 本身）；用最新镜像 |
 | 引擎包已下载但引擎「未就绪」，日志报 `libatomic.so.1: cannot open shared object file` | backend 镜像缺 `libatomic1`（MaaCore 依赖）：用最新镜像重建 api（`docker compose up -d --build api`） |
+| 设备检测/接入报 `adb 命令失败 ... Cannot mkdir '/home/appuser/.android': No such file or directory` | 镜像内 `appuser` 无 HOME（`--no-create-home` 且容器默认 HOME=/root）：新镜像已建 `/home/appuser` + `ENV HOME=/home/appuser`（adb server 需要 `~/.android` 存 ADB 密钥）；重建 api 容器 |
+| 首页「识别引擎」显示「引擎降级 · 仅 ADB」，但引擎包明明就绪 | `GET /devices/detect` 的 adb 失败分支未带引擎字段导致前端误判（已修复）；同时确认上一条 adb server 是否正常 |
 | 更新源选 Mirror酱（MirrorChyan）后引擎包下载失败（code 8001） | Mirror酱的 MAA 资源仅发布 Windows 应用本体，Linux（NAS）无对应包；引擎包请用 GitHub 源（可配 ghproxy 镜像或 HTTP 代理） |
 | GitHub 官方直连下载引擎包失败（HEAD 200 但 GET 中断） | 「更新设置 → HTTP 代理」填 clash 等代理地址（如 `http://<NAS IP>:7890`），或配置 ghproxy 镜像前缀 |
 | 构建报 `blob ...: operation not permitted`（btrfs 卷） | 构建缓存坏块：删除报错路径的 blob 文件，再 `docker builder prune -af` 重建索引后重试 |
@@ -96,6 +98,11 @@ docker compose up -d            # 应用升级
 | 更新源走 GitHub 慢 | 「设置 → 更新设置」配置 ghproxy 镜像前缀或 MirrorChyan CDK |
 
 > 以上 api/nginx 报错均已在本项目 Docker 实机验证（Steam Deck / Debian 12 x86_64）中复现并修复，对应 commit 见仓库历史。
+
+## 7.5 数据持久化与备份（2026-08-16 补充）
+
+- **重启不丢**：所有持久数据在 Docker named volume `maaweb-config`（/data/config）——SQLite（maaweb.db，含设备/方案/队列草稿/自动任务/账号组/设置）+ runtime_settings.json（镜像源/CDK/代理/ADB 路径）；引擎包与资源在 `maaweb-cache`、日志在 `maaweb-logs`。容器 `restart` / `up -d --build` 重建 / 删除重建容器均不丢失（已实机验证）。
+- **导出/导入**：设置 → 问题反馈 → 「导出配置」（zip，含全部配置与设置）／「导入配置」（覆盖恢复，导入前自动备份当前配置到 `maaweb-logs` 卷 backup/ 目录）。备份只需保存该 zip 或直接备份 `maaweb-config` 卷。
 
 ## 8. 架构与安全说明
 

@@ -609,12 +609,15 @@ class TestMallOnceADay:
         assert params["visit_friends"] is True
 
     async def test_yesterday_last_time_allows_run(self, device, engine_env) -> None:
+        from datetime import datetime, timedelta
+
         from app.engine.taskrunner import _yj_today
-        from datetime import timedelta, datetime
 
         await self._clear()
+        # 游戏日 04:00 重置：凌晨时段昨天可能与游戏日同日，取真正的「上个游戏日」
         yesterday = (datetime.now().astimezone() - timedelta(days=1)).strftime("%Y-%m-%d")
-        assert yesterday != _yj_today()
+        if yesterday == _yj_today():
+            yesterday = (datetime.now().astimezone() - timedelta(days=2)).strftime("%Y-%m-%d")
         await self._seed("mall.credit_fight_last_time", yesterday)
         runner = TaskRunner.get(1)
         await runner.start(device, [self._mall()])

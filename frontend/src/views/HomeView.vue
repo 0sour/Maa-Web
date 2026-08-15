@@ -5,49 +5,26 @@ import { useDevicesStore } from '@/stores/devices'
 import { useTasksStore } from '@/stores/tasks'
 import { resourcesApi, type ResourceStatus } from '@/api/resources'
 import { useTaskQueue } from '@/tasks/useTaskQueue'
+import { useQueueDraft } from '@/tasks/useQueueDraft'
 import DropSelect, { type DropOption } from '@/tasks/forms/DropSelect.vue'
 import TaskQueuePanel from '@/tasks/TaskQueuePanel.vue'
 import TaskParamsPanel from '@/tasks/TaskParamsPanel.vue'
-import type { PersistedTask } from '@/tasks/taskTypes'
 
 const app = useAppStore()
 const devices = useDevicesStore()
 const tasks = useTasksStore()
 
-// ── 作战队列（共享 useTaskQueue + 即时保存，刷新/切页不丢失） ──
-const DAILY_KEY = 'maaweb.daily.queue'
-
-function loadDaily(): PersistedTask[] | undefined {
-  try {
-    const raw = localStorage.getItem(DAILY_KEY)
-    if (!raw) return undefined
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as PersistedTask[]) : undefined
-  } catch {
-    return undefined
-  }
-}
-
-function saveDaily(list: PersistedTask[]) {
-  try {
-    localStorage.setItem(DAILY_KEY, JSON.stringify(list))
-  } catch {
-    /* 隐私模式/配额 —— 忽略 */
-  }
-}
+// ── 作战队列（后端草稿：跨浏览器一致，防抖保存；刷新/切页不丢失） ──
+const queueDraft = useQueueDraft('daily')
 
 const {
   queue, adding, selectedTask, countChecked,
   addTask, selectTask, toggleChecked, removeTask, onDragStart, onDrop,
-  payload, serialize,
-} = useTaskQueue(loadDaily())
+  payload, serialize, restore,
+} = useTaskQueue()
 
-// 任何队列/参数改动即保存（每任务独立参数，直接固化，刷新后行为一致）
-watch(
-  () => queue.value,
-  () => saveDaily(serialize()),
-  { deep: true },
-)
+// 任何队列/参数改动 → 防抖保存到后端
+queueDraft.watchSave(queue, serialize)
 
 // ── 目标设备（本次作战执行对象） ─────────────────────────
 const targetId = ref<number | null>(null)
@@ -268,11 +245,14 @@ async function startResourceUpdate() {
 }
 
 // ── 生命周期 ───────────────────────────────────────────
-onMounted(() => {
+onMounted(async () => {
   app.probeBackend()
   devices.fetchList()
   devices.detectDevices()
   loadResourceStatus()
+  // 后端草稿回填（跨浏览器一致；加载完成后 watchSave 才生效）
+  const draft = await queueDraft.loadDraft()
+  if (draft) restore(draft)
   // 默认选中第一台在线设备
   watch(
     () => devices.list,
@@ -378,15 +358,15 @@ onBeforeUnmount(() => {
           <TaskParamsPanel :selected-task="selectedTask" />
         </div>
 
-        <!-- 作战记录（当天日志，跨页面保留） -->
+        <!-- 作战记录（当天日志，跨页面保留；仅普通任务，自动任务见「自动任务」页） -->
         <div class="panel">
           <div class="panel-hd">
             <span class="t">作战记录</span>
-            <span class="sub">实时情报 · {{ tasks.todayLogs.length }} 行（当天）</span>
+            <span class="sub">实时情报 · {{ tasks.normalTodayLogs.length }} 行（当天）</span>
           </div>
           <div ref="logBox" class="log">
-            <div v-if="tasks.todayLogs.length === 0" class="log-empty">今天暂无日志——等待作战开始后实时显示</div>
-            <div v-for="(l, i) in tasks.todayLogs" :key="i" class="l">
+            <div v-if="tasks.normalTodayLogs.length === 0" class="log-empty">今天暂无日志——等待作战开始后实时显示</div>
+            <div v-for="(l, i) in tasks.normalTodayLogs" :key="i" class="l">
               <span class="t">{{ fmtTime(l.ts ?? '') }}</span>
               <span :class="levelCls(l.level)">{{ tagOf(l.level) }}</span>
               <span class="c-dim">{{ l.message }}</span>

@@ -67,18 +67,29 @@ async def detect_devices() -> DeviceDetectResult:
         version = await adb.adb_version()
         path = adb.resolve_adb_path()
     except adb.AdbUnavailableError as exc:
-        return DeviceDetectResult(adb_available=False, reason=str(exc))
+        return DeviceDetectResult(
+            adb_available=False,
+            reason=str(exc),
+            engine_available=asstproxy.is_available(),
+            engine_version=asstproxy.engine_version(),
+        )
     except adb.AdbCommandError as exc:
+        # adb 失败不影响引擎状态：必须带 engine 字段，否则前端 KPI 误判「引擎降级」
         return DeviceDetectResult(
             adb_available=True,
             adb_path=adb.resolve_adb_path(),
             reason=f"adb 扫描失败: {exc}",
+            engine_available=asstproxy.is_available(),
+            engine_version=asstproxy.engine_version(),
         )
     devices = [
         DetectedDevice(
             serial=d.serial, state=d.state, model=d.model, host=d.host, port=d.port
         )
         for d in found
+        # offline = adb 记录的「已知但不可达」端点（曾尝试连接/通信失败），
+        # 无法添加/连接，对用户无价值 → 过滤；unauthorized 保留（提示手机授权）
+        if d.state != "offline"
     ]
     return DeviceDetectResult(
         adb_available=True,

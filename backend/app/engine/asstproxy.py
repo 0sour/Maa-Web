@@ -483,12 +483,15 @@ def _to_user_additional(raw: Any) -> list[dict]:
     return out
 
 
-def to_asst_task(item: Any, client_type: str = "Official") -> tuple[str, dict]:
+def to_asst_task(
+    item: Any, client_type: str = "Official", account_name: str | None = None
+) -> tuple[str, dict]:
     """把前端 TaskItem（entry + params）映射为 MAA (任务类型, 参数)。
 
     MAA 任务类型即 entry（StartUp/Fight/Recruit/Infrast/Mall/Award/Roguelike/
     Copilot…），参数补齐 MAA 必填字段（如 StartUp 的 client_type 取自设备配置）
     并做旧字段名兼容（recruit_max_times → times、auto_squad → formation）。
+    account_name 为可选账号名（自动任务账号轮换用，引擎 AccountSwitchTask 原生支持）。
     """
     ttype = str(getattr(item, "entry", ""))
     params = dict(getattr(item, "params", None) or {})
@@ -532,9 +535,13 @@ def to_asst_task(item: Any, client_type: str = "Official") -> tuple[str, dict]:
         # 使用种子为 UI 门控开关（引擎键 start_with_seed 为种子字符串），关闭时不下发
         if not merged.get("start_with_seed_enabled"):
             merged.pop("start_with_seed", None)
-    if ttype in ("StartUp", "CloseDown") and not merged.get("client_type"):
+    if ttype in ("StartUp", "CloseDown"):
         # StartUp/CloseDown 的 client_type 为必填，缺省时注入设备配置
-        merged["client_type"] = client_type or "Official"
+        if not merged.get("client_type"):
+            merged["client_type"] = client_type or "Official"
+        # 自动任务账号轮换：注入账号名（AccountSwitchTask 按此切换目标账号）
+        if account_name and not merged.get("account_name"):
+            merged["account_name"] = account_name
     return ttype, merged
 
 

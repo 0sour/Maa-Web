@@ -68,7 +68,9 @@ RUN python -c "import fastapi, uvicorn"
 # 1000 matches the common default user on Synology DSM, Unraid, and most distros,
 # which avoids permission headaches on named volume bind mounts (if any user swaps).
 RUN groupadd --system --gid 1000 appgroup \
- && useradd  --system --uid 1000 --gid 1000 --no-create-home --shell /usr/sbin/nologin appuser
+ && useradd  --system --uid 1000 --gid 1000 --no-create-home --shell /usr/sbin/nologin appuser \
+ && mkdir -p /home/appuser \
+ && chown -R 1000:1000 /home/appuser
 
 # ── App source ─────────────────────────────────────────
 WORKDIR /app
@@ -81,8 +83,11 @@ RUN mkdir -p /data/config /data/logs /data/cache /data/media /tmp \
 # Drop privileges
 USER appuser
 
-# Python hygiene
-ENV PYTHONDONTWRITEBYTECODE=1 \
+# HOME 指向 appuser 的真实目录：adb server 启动需要 ~/.android（ADB 密钥），
+# 容器默认 HOME=/root 且 /home/appuser 不存在会导致 adb 启动即失败
+# （Cannot mkdir '/home/appuser/.android'）
+ENV HOME=/home/appuser \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app:${PYTHONPATH}"
 

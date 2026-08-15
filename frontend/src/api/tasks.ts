@@ -32,6 +32,8 @@ export interface LogEntry {
   id: number
   run_id: number
   device_id: number
+  /** 日志来源：normal（普通任务）| auto（定时自动任务）| manual_auto（自动任务·手动运行） */
+  source: string
   level: string
   message: string
   ts: string
@@ -54,9 +56,21 @@ export interface LiveLogLine {
   level?: string
   message?: string
   ts?: string
+  source?: 'normal' | 'auto' | 'manual_auto'
   event?: string
   status?: string
   run_id?: number
+}
+
+/** 日志来源筛选：all 全部 | normal 普通任务 | auto 自动任务（含手动运行） */
+export type LogSourceFilter = 'all' | 'normal' | 'auto'
+
+/** 队列草稿键：daily=首页作战部署队列，tasks=编排页编辑草稿（后端单份，跨浏览器一致） */
+export type QueueDraftKey = 'daily' | 'tasks'
+
+export interface QueueDrafts {
+  daily: unknown[]
+  tasks: unknown[]
 }
 
 export const tasksApi = {
@@ -73,14 +87,22 @@ export const tasksApi = {
   logs: (runId: number) =>
     http.get<LogEntry[]>(`/v1/tasks/runs/${runId}/logs`).then((r) => r.data),
   /** 当天日志（本地时区，时间正序）——实时面板回填，跨页面保留 */
-  today: (deviceId?: number) =>
+  today: (deviceId?: number, source: LogSourceFilter = 'all') =>
     http
-      .get<LogDayGroup>('/v1/tasks/logs/today', { params: { device_id: deviceId } })
+      .get<LogDayGroup>('/v1/tasks/logs/today', { params: { device_id: deviceId, source } })
       .then((r) => r.data),
   /** 历史日志按天分组（仅今天之前，跨 run；deviceId 可选过滤） */
-  logsByDay: (days: number, deviceId?: number) =>
+  logsByDay: (days: number, deviceId?: number, source: LogSourceFilter = 'all') =>
     http
-      .get<LogsByDay>('/v1/tasks/logs', { params: { days, device_id: deviceId } })
+      .get<LogsByDay>('/v1/tasks/logs', { params: { days, device_id: deviceId, source } })
+      .then((r) => r.data),
+  /** 读取全部队列草稿（daily=首页作战部署，tasks=编排页草稿） */
+  queueDrafts: () =>
+    http.get<QueueDrafts>('/v1/tasks/queue-drafts').then((r) => r.data),
+  /** 保存队列草稿（后端化，跨浏览器一致） */
+  saveQueueDraft: (key: QueueDraftKey, tasks: unknown[]) =>
+    http
+      .put<{ ok: boolean; key: string }>(`/v1/tasks/queue-drafts/${key}`, { tasks })
       .then((r) => r.data),
 }
 

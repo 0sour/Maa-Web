@@ -50,7 +50,7 @@ const navGroups = [
     items: [
       { to: '/', label: '作战总览', ico: '◆' },
       { to: '/tasks', label: '任务编排', ico: '▤' },
-      { to: '/schedule', label: '定时执行', ico: '◷' },
+      { to: '/auto-tasks', label: '自动任务', ico: '◷' },
       { to: '/devices', label: '设备管理', ico: '◇' },
     ],
   },
@@ -74,7 +74,7 @@ const navGroups = [
 const crumbMap: Record<string, { group: string; name: string }> = {
   '/': { group: '作战总览', name: '罗德岛指挥室' },
   '/tasks': { group: '任务编排', name: '任务队列' },
-  '/schedule': { group: '定时执行', name: '自动调度' },
+  '/auto-tasks': { group: '自动任务', name: '定时调度 · 账号轮换' },
   '/devices': { group: '设备管理', name: 'ADB 连接' },
   '/toolbox': { group: '工具箱', name: '识别与辅助' },
   '/logs': { group: '作战日志', name: '执行记录' },

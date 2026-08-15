@@ -150,23 +150,26 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | 文件 | 覆盖风险 | 状态 |
 |------|---------|------|
 | `backend/tests/test_health.py` | R2/R3：三探针 JSON 结构 + 状态码 | ✅ 已落地（4 用例） |
-| `backend/tests/test_devices.py` | R4/R9/R11/R17：设备 CRUD 全生命周期 + connect 降级 + detect 端点 + 分辨率路由 + 重复设备查重 + 列表探活降级（保持在线/扫描失败不阻塞）+ 隔离 | ✅ 已落地（11 用例） |
+| `backend/tests/test_devices.py` | R4/R9/R11/R17：设备 CRUD 全生命周期 + connect 降级 + detect 端点（adb 失败分支仍返回引擎状态 + offline 端点过滤、保留 unauthorized）+ 分辨率路由 + 重复设备查重 + 列表探活降级（保持在线/扫描失败不阻塞）+ 隔离 | ✅ 已落地（13 用例） |
 | `backend/tests/conftest.py` | R8：临时目录隔离 + ASGI 客户端 + 表级隔离（含 runtime_settings.json 隔离） | ✅ 已落地 |
 | `backend/tests/test_adb.py` | R11/R17：adb 输出解析（devices -l / connect）+ 路径解析 + 命令封装 + `wm size` 解析/设置/重置 + resolve_adb_path 优先级（设置页热更新 > env > PATH）+ USB connect serial 在线校验 | ✅ 已落地（39 用例） |
-| `backend/tests/test_asstproxy.py` | R12：fake Asst 引擎（MaaCore 动态库）→ 会话创建/池/回调解析/任务映射/降级（含 copilot_mode 场景分发、OfflineConfirm 事件、Fight times≤0 剥离不限） | ✅ 已落地（40 用例） |
+| `backend/tests/test_asstproxy.py` | R12：fake Asst 引擎（MaaCore 动态库）→ 会话创建/池/回调解析/任务映射/降级（含 copilot_mode 场景分发、OfflineConfirm 事件、Fight times≤0 剥离不限、StartUp/CloseDown 注入 client_type 与 account_name） | ✅ 已落地（44 用例） |
 | `backend/tests/test_manager.py` | R11/R12：连接状态机（成功/拒绝/缺失/引擎降级）+ 环境状态 | ✅ 已落地（11 用例） |
 | `backend/tests/test_taskrunner.py` | R13/R14/R17：任务队列状态机（前置校验/成功/失败/停止/快照/Copilot 系多作业展开）+ 日志持久化 + 分辨率预检 + 残留事件不串线 + 周计划按星期跳过 + OfflineConfirm 停止/续刷 + Mall 一日只执行一次 + 停滞检测（超时触发/提醒间隔/重置/开关） | ✅ 已落地（38 用例） |
-| `backend/tests/test_tasks_api.py` | R13/R14：run/stop/status/logs 路由 + 409/422/404 语义 + 历史日志按天分组（仅今天之前/时区序列化）+ 当天日志接口（/logs/today） | ✅ 已落地（10 用例） |
+| `backend/tests/test_tasks_api.py` | R13/R14：run/stop/status/logs 路由 + 409/422/404 语义 + 历史日志按天分组（仅今天之前/时区序列化）+ 当天日志接口（/logs/today）+ 日志来源过滤（normal/auto 含 manual_auto，行带 source 字段） | ✅ 已落地（11 用例） |
 | `backend/tests/test_resource_mgr.py` | R15/R16：引擎包状态/远端查询/下载-解压-原子替换全流程（zip + linux tar.gz）+ GitHub 镜像候选测速 + MirrorChyan（CDK 检查/增量包/os-arch/up_to_date）+ 动态资源同步（diff/full）+ item_index 材料表（可刷过滤）+ battle_data 干员表 + recruitment Tags + 肉鸽开局干员 + stage_codes 可导航过滤（导航任务/主线格式/活动缺失排除） | ✅ 已落地（58 用例） |
 | `backend/tests/test_resources_api.py` | R15：resources status/update/sync/items/operators/recruit-tags/roguelike-core-chars 路由 + 失败上报 | ✅ 已落地（7 用例） |
-| `backend/tests/test_settings_api.py` | R16：镜像源设置 GET/PUT（update_source / CDK 保存-回显-脱敏）/ 有效期检查 / CDK 未变更保留有效期回归 + 通用设置分组（GET/PUT/upsert/删除/422）+ logs-export zip + geoip（IP 定位成功/服务失败 502）+ proxy-test（代理连通成功/失败） | ✅ 已落地（18 用例） |
+| `backend/tests/test_settings_api.py` | R16：镜像源设置 GET/PUT（update_source / CDK 保存-回显-脱敏）/ 有效期检查 / CDK 未变更保留有效期回归 + 通用设置分组（GET/PUT/upsert/删除/422）+ 账号组分组（accounts.list 保存/回显/覆盖）+ logs-export zip + geoip（IP 定位成功/服务失败 502）+ proxy-test（代理连通成功/失败） | ✅ 已落地（19 用例） |
 | `backend/tests/test_copilot_mgr.py` | R18：作业站代码解析（prts:// / maa:// / 简写 / 纯数字）+ 作业/作业集拉取 + 文件名安全 + 关卡名映射 + SSS 作业（type=SSS 免 opers 校验 + stage_name/strategy 细分校验）+ job_type | ✅ 已落地（24 用例） |
-| `backend/tests/test_schedules_api.py` | M6 定时执行：CRUD 全流程 + 校验（空星期/空方案/坏时间/设备 404）+ 立即试跑（在线成功/离线 409/不存在 404） | ✅ 已落地（4 用例） |
-| `backend/tests/test_scheduler.py` | M6 调度器：星期×时间匹配触发 + 时间/星期/禁用不匹配跳过 + 同分钟防重 + last_run_at 落库 + 触发日志持久化 | ✅ 已落地（5 用例） |
+| `backend/tests/test_schedules_api.py` | M6 定时执行（旧版，兼容保留）：CRUD + 校验 + 立即试跑 | ✅ 已落地（4 用例） |
+| `backend/tests/test_scheduler.py` | M6+ 自动任务调度：时间槽星期×时间匹配触发 + 时间/星期/禁用不匹配跳过 + 同分钟防重 + last_run_at 落库 + 账号轮换顺序/启停勾选 + 失败账号跳过并标记 last_ok + 无账号跳过 + 冲突三策略（skip/queue/force）+ RUN TEST source=manual_auto + 触发日志 source=auto + 旧库 schema 升级迁移（ALTER + schedule_jobs→auto_tasks） | ✅ 已落地（15 用例） |
+| `backend/tests/test_auto_tasks_api.py` | M6+ 自动任务 API：嵌套 CRUD 全流程 + 级联删除 + 校验（空星期/坏时间/设备 404）+ run-test（提交 manual_auto / 设备忙 409 / 离线 409 / 无启用账号 422 / 槽不属于任务 404）+ 未命名组/槽创建（组名与槽名允许空、立即落库） | ✅ 已落地（10 用例） |
+| `backend/tests/test_config_backup.py` | 全量配置导出/导入：zip 内容（设备/设置/方案/自动任务/草稿/runtime_settings）+ 覆盖恢复一致性（导出→清空→导入→断言）+ 自动备份文件 + 非法输入 422 | ✅ 已落地（3 用例） |
+| `backend/tests/test_task_schemes_api.py` | 任务方案后端化：CRUD 全流程 + 同名覆盖 upsert + 校验（空名 422/404/改名冲突 409）+ 队列草稿读写（daily/tasks、非法键 422） | ✅ 已落地（4 用例） |
 | `backend/tests/test_notify.py` | M6 外部通知：渠道消息构造（Server酱 URL/钉钉加签/自定义模板与默认 JSON）+ 发送主流程（无配置空返回/事件开关/多渠道+禁用过滤/HTTP 错误与异常落库）+ API（测试发送/记录/重发 404） | ✅ 已落地（11 用例） |
 | `frontend/scripts/verify-ui.mjs` | R4/R6/R7/R11：L3 浏览器自动化回归（首页/设备 CRUD+连接终态/检测面板/占位页/控制台错误） | ✅ 已落地（27 断言） |
 
-> 全量 pytest 实测：**285 passed**（2026-08-15）。用例数含参数化展开；新增模块已登记本表。
+> 全量 pytest 实测：**322 passed**（2026-08-16，含 detect 引擎字段 / schema 迁移回归 / offline 过滤 / 任务方案与队列草稿后端化 / 自动任务组立即落库 / 配置导出导入 / 空槽名允许）。用例数含参数化展开；新增模块已登记本表。
 
 ---
 

@@ -65,12 +65,15 @@ async def on_startup(settings: Settings) -> str:
 
     # 3) Create database tables (SQLite via aiosqlite)
     try:
-        from app.db.session import get_engine
+        from app.db.session import get_engine, get_sessionmaker
+        from app.models import (
+            auto_task as _auto_task_models,  # noqa: F401  (registers AutoTask/Slot/Account)
+        )
         from app.models import (
             notify as _notify_models,  # noqa: F401  (registers NotifyLog)
         )
         from app.models import (
-            schedule as _schedule_models,  # noqa: F401  (registers ScheduleJob)
+            schedule as _schedule_models,  # noqa: F401  (registers ScheduleJob, legacy)
         )
         from app.models import (
             setting as _setting_models,  # noqa: F401  (registers Setting)
@@ -82,7 +85,9 @@ async def on_startup(settings: Settings) -> str:
 
         async with get_engine().begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        log.info("Database tables ensured (devices, task_runs, log_entries, settings, schedule_jobs)")
+        # 轻量 schema 升级（无 alembic）：新列 ALTER + 旧定时任务数据迁移
+        await _upgrade_schema(get_sessionmaker)
+        log.info("Database tables ensured (devices, task_runs, log_entries, settings, auto_tasks)")
     except Exception as exc:  # noqa: BLE001 - pragma: no cover - env-specific (e.g. unwritable dir)
         log.warning("Database init failed: %s", exc)
 
@@ -109,6 +114,65 @@ async def on_startup(settings: Settings) -> str:
         _STARTUP_CHECKS["secret_key_generated"] = False
 
     return effective_key
+
+
+async def _upgrade_schema(sessionmaker) -> None:
+    """轻量 schema 升级（无 alembic，SQLite 场景）。
+
+    1. log_entries 缺 source 列 → ALTER 补列（默认 normal，旧行归普通任务）。
+    2. 旧 schedule_jobs 有数据且 auto_tasks 为空 → 迁移为「旧定时任务」组：
+       每 job 一个时间槽（名称/星期/时间/启停保留，冲突默认 queue），
+       账号列表为空（旧定时任务无账号概念，需用户在自动任务页补账号）。
+    """
+    from sqlalchemy import func, select, text
+
+    from app.db.session import get_engine
+    from app.models.auto_task import AutoSlot, AutoTask
+    from app.models.schedule import ScheduleJob
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        cols = (await conn.execute(text("PRAGMA table_info(log_entries)"))).all()
+        if not any(c[1] == "source" for c in cols):
+            await conn.execute(
+                text(
+                    "ALTER TABLE log_entries "
+                    "ADD COLUMN source VARCHAR(16) NOT NULL DEFAULT 'normal'"
+                )
+            )
+            log.info("schema upgrade: log_entries.source added")
+
+    async with sessionmaker()() as s:
+        old = (await s.execute(select(ScheduleJob))).scalars().all()
+        if not old:
+            return
+        new_count = (await s.execute(select(func.count(AutoTask.id)))).scalar()
+        if new_count:
+            return
+        by_device: dict[int, list[ScheduleJob]] = {}
+        for job in old:
+            by_device.setdefault(job.device_id, []).append(job)
+        for device_id, jobs in by_device.items():
+            task = AutoTask(name="旧定时任务", enabled=True, device_id=device_id)
+            s.add(task)
+            await s.flush()
+            for job in jobs:
+                s.add(
+                    AutoSlot(
+                        task_id=task.id,
+                        name=job.name or "旧定时任务",
+                        enabled=job.enabled,
+                        weekdays=job.weekdays,
+                        time=job.time,
+                        conflict="queue",
+                    )
+                )
+        await s.commit()
+        log.warning(
+            "schema upgrade: migrated %d legacy schedule_jobs → auto_tasks "
+            "(账号列表为空，请在自动任务页为各时间槽添加账号)",
+            len(old),
+        )
 
 
 async def on_shutdown() -> None:

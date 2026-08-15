@@ -119,7 +119,6 @@ class TestSend:
         from app.db.session import get_engine
         from app.models import (  # noqa: F401  (registers tables)
             notify as _notify_models,
-            setting as _setting_models,
         )
         from app.models.device import Base
 

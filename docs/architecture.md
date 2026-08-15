@@ -92,7 +92,7 @@
 > - 前置校验：设备在线 / 引擎可用 / 引擎包就绪 / 分辨率支持，任一不满足 → `TaskQueueError` → API 409 + 人话 detail；`AsstConnect` 失败（如触控模式不可用）→ `EngineCreateError` → API 502
 > - `TaskRun` 表记录每次运行（status/summary/error/started_at/finished_at），`LogEntry` 表持久化日志行
 > - **外部通知**（`engine/notify.py`，M6）：完成/出错/停滞事件 → 按 notify.* 配置逐渠道推送（Server酱/钉钉加签/自定义 Webhook），发送记录落 `notify_logs`；taskrunner 收尾时先广播 run_finished 再发送
-> - **定时调度**（`engine/scheduler.py`，M6）：分钟级 tick（整点对齐），星期 × 时间匹配 `schedule_jobs` → 执行方案快照；90s 防重窗口、last_run_at 落库、触发日志进实时流
+> - **自动任务调度**（`engine/scheduler.py`，M6+）：分钟级 tick（整点对齐）匹配 `auto_slots`（时间槽）→ `AutoSessionRunner` 每设备队列串行执行账号轮换（冲突策略 queue/skip/force，账号失败跳过）；90s 防重窗口（slot.last_run_at）、触发日志（`source=auto`）进实时流
 >
 > 引擎切换背景（2026-08）：MaaFw 5.x 的 `Resource.post_pipeline` 只接受 Pipeline v2 格式，
 > 而 MAA 官方资源是自研旧格式（`algorithm`/`action` 字符串），且战斗/公招/基建依赖 MaaCore
@@ -187,11 +187,13 @@ MAA 引擎与识别资源（pipeline / template / model）随官方 release 完�
 
 覆盖：公招识别（T-01）、干员识别（T-02）、仓库识别（T-03）、抽卡（T-05）、窥屏（T-06）、小游戏（D-15，像素画/隐秘战线）。T-04 视频识别源码中已注释弃用，不实现。
 
-### 3.5 定时执行（S-02）
+### 3.5 自动任务（M6+，原定时执行 S-02）
 
-- APScheduler 管理 cron/间隔任务。
-- 每个定时任务 = 配置快照（S-04）+ 任务组合 + 执行计划。
-- 触发后投递到对应设备的 TaskQueue，沿用任务状态机。
+- 模型：`AutoTask`（任务组）→ `AutoSlot`（时间槽：名称/星期/时间/启停/冲突策略）→ `AutoSlotAccount`（账号 × 方案快照 + 启停勾选）。
+- 账号来自设置中心「账号组」（Setting 表 `accounts.list`：`[{name, client_type}]`）；执行时 StartUp/CloseDown 注入 `account_name` + 设备 `client_type`，由引擎 `AccountSwitchTask` 切换账号。
+- 调度（`engine/scheduler.py`，M6+）：分钟级 tick（整点对齐）匹配 `auto_slots` → `AutoSessionRunner`（每设备队列）串行执行槽的账号列表；冲突策略 `queue`（排队等待）/ `skip`（跳过本次）/ `force`（强制结束上一任务）；账号失败跳过并标记 `last_ok`；90s 防重窗口（slot.last_run_at）。
+- 触发日志 `source=auto`；RUN TEST（`POST /auto-tasks/{id}/run-test`）`source=manual_auto`；普通执行 `source=normal` —— 日志按来源区分展示（自动任务页独立面板、作战日志页筛选）。
+- 旧 `schedule_jobs` 数据启动时自动迁移为「旧定时任务」组（槽保留、账号需手动补）。
 
 ### 3.6 通知适配层（S-06）
 
@@ -330,10 +332,10 @@ Setting       (S-06/09) key, value  (通知通道 / GPU 加速 / 上传 ID 等)
 | GET | `/api/v1/settings/mirror` | 镜像源设置读取（更新源 / ghproxy 前缀 / CDK 脱敏状态 / 有效期诊断） |
 | PUT | `/api/v1/settings/mirror` | 镜像源设置保存（热更新立即生效；CDK 未变更保留有效期） |
 | POST | `/api/v1/settings/mirror/check` | MirrorChyan CDK 有效期检查（对齐 cdk_expired_time 机制） |
-| GET | `/api/v1/settings` | 通用设置分组读取（game/connection/ui，SQLite Setting 表） |
-| PUT | `/api/v1/settings/{group}` | 通用设置分组保存（key 前缀 upsert，传 None 删除） |
-| GET | `/api/v1/settings` | 通用设置分组读取（game/connection/ui/notify，SQLite Setting 表） |
-| PUT | `/api/v1/settings/{group}` | 通用设置分组保存（key 前缀 upsert，传 None 删除） |
+| GET | `/api/v1/settings` | 通用设置分组读取（game/connection/ui/notify/accounts，SQLite Setting 表） |
+| PUT | `/api/v1/settings/{group}` | 通用设置分组保存（key 前缀 upsert，传 None 删除；accounts 组为自动任务账号来源） |
+| GET | `/api/v1/settings/export-config` | 导出全部配置 zip（设备/方案/队列草稿/自动任务/设置含账号组/旧定时任务/运行时设置含 CDK 代理；备份与迁移用） |
+| POST | `/api/v1/settings/import-config` | 导入配置（覆盖恢复、保留原 id 引用；导入前自动备份当前配置到 logs/backup/） |
 | GET | `/api/v1/settings/logs-export` | 打包日志目录为 zip 下载（问题反馈导出） |
 | GET | `/api/v1/settings/geoip` | IP 定位（ip-api.com，NAS 出口 IP → 经纬度/城市，主题「按日出日落」兜底） |
 | POST | `/api/v1/settings/proxy-test` | 测试 HTTP 代理连通性（经代理访问 GitHub API，返回耗时/错误） |
@@ -343,11 +345,24 @@ Setting       (S-06/09) key, value  (通知通道 / GPU 加速 / 上传 ID 等)
 | GET | `/api/v1/copilot/list` | 本地作业 JSON 列表（含可读关卡名） |
 | POST | `/api/v1/copilot/prts/code` | 解析作业站代码（`prts://99359` / `prts://s51251` / `s51251` / `maa://`）拉取作业/作业集 |
 | POST | `/api/v1/copilot/prts/{id}` | 按作业 ID 从 prts.plus 拉取并保存 |
-| GET | `/api/v1/schedules` | 定时任务列表（schedule_jobs） |
-| POST | `/api/v1/schedules` | 新建定时任务（星期 × 时间 → 方案快照） |
-| PUT | `/api/v1/schedules/{id}` | 更新定时任务（部分字段） |
-| DELETE | `/api/v1/schedules/{id}` | 删除定时任务 |
-| POST | `/api/v1/schedules/{id}/run` | 立即触发一次（试跑，不走时间匹配） |
+| GET | `/api/v1/schedules` | 定时任务列表（schedule_jobs，旧版；已迁移到 auto-tasks） |
+| POST | `/api/v1/schedules` | 新建定时任务（旧版，保留兼容） |
+| PUT | `/api/v1/schedules/{id}` | 更新定时任务（旧版，保留兼容） |
+| DELETE | `/api/v1/schedules/{id}` | 删除定时任务（旧版，保留兼容） |
+| POST | `/api/v1/schedules/{id}/run` | 立即触发一次（旧版，保留兼容） |
+| GET | `/api/v1/auto-tasks` | 自动任务列表（组 + 时间槽 + 账号，嵌套） |
+| POST | `/api/v1/auto-tasks` | 新建自动任务（slots 全量嵌套） |
+| PUT | `/api/v1/auto-tasks/{id}` | 整体保存（slots 全量替换） |
+| DELETE | `/api/v1/auto-tasks/{id}` | 删除（级联删槽与账号绑定） |
+| POST | `/api/v1/auto-tasks/{id}/run-test` | 测试运行某时间槽（手动，日志 source=manual_auto） |
+| GET | `/api/v1/task-schemes` | 任务方案列表（task_schemes 表，updated_at 倒序） |
+| POST | `/api/v1/task-schemes` | 保存方案（同名覆盖 upsert） |
+| PUT | `/api/v1/task-schemes/{id}` | 更新方案（改名/换任务；改名冲突 409） |
+| DELETE | `/api/v1/task-schemes/{id}` | 删除方案 |
+| GET | `/api/v1/tasks/queue-drafts` | 队列草稿（daily=首页作战部署 / tasks=编排页草稿，后端单份跨浏览器一致） |
+| PUT | `/api/v1/tasks/queue-drafts/{key}` | 保存队列草稿（Setting 表 queue_draft.*） |
+| GET | `/api/v1/tasks/logs?source=all\|normal\|auto` | 历史日志按天分组（来源过滤：auto 含手动运行） |
+| GET | `/api/v1/tasks/logs/today?source=all\|normal\|auto` | 当天日志（来源过滤） |
 | ~~POST~~ | ~~`/api/v1/configs`~~ | ~~配置管理（S-04）~~（已裁掉） |
 | ~~POST~~ | ~~`/api/v1/remote/get-task`~~ | ~~远程控制·GET 任务（S-10）~~（已裁掉） |
 | ~~POST~~ | ~~`/api/v1/remote/report-status`~~ | ~~远程控制·上报状态（S-10）~~（已裁掉） |

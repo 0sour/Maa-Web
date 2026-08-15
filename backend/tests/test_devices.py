@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from app.engine import adb, asstproxy
-from app.engine.adb import AdbUnavailableError
+from app.engine.adb import AdbCommandError, AdbUnavailableError
 
 
 async def _create_device(client, **overrides) -> dict:
@@ -117,12 +117,35 @@ async def test_connect_without_adb_reports_error(client, monkeypatch) -> None:
 async def test_detect_no_adb(client, monkeypatch) -> None:
     """Detect reports adb_available=False + fix hint when binary missing."""
     monkeypatch.setattr(adb, "resolve_adb_path", lambda: (_ for _ in ()).throw(AdbUnavailableError("未找到 adb")))
+    monkeypatch.setattr(asstproxy, "is_available", lambda: True)
+    monkeypatch.setattr(asstproxy, "engine_version", lambda: "v6.16.8")
     resp = await client.post("/api/v1/devices/detect")
     assert resp.status_code == 200
     body = resp.json()
     assert body["adb_available"] is False
     assert body["devices"] == []
     assert body["reason"]
+    # adb 失败不影响引擎状态（前端 KPI 依赖 engine 字段）
+    assert body["engine_available"] is True
+    assert body["engine_version"] == "v6.16.8"
+
+
+async def test_detect_adb_command_error_keeps_engine(client, monkeypatch) -> None:
+    """adb 命令失败（如容器内 server 起不来）→ 仍返回引擎可用状态，避免误判降级。"""
+    async def _boom() -> list:
+        raise AdbCommandError("adb 命令失败 (exit=1)")
+
+    monkeypatch.setattr(adb, "resolve_adb_path", lambda: "/usr/bin/adb")
+    monkeypatch.setattr(adb, "scan_devices", _boom)
+    monkeypatch.setattr(asstproxy, "is_available", lambda: True)
+    monkeypatch.setattr(asstproxy, "engine_version", lambda: "v6.16.8")
+    resp = await client.post("/api/v1/devices/detect")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["adb_available"] is True
+    assert "adb 扫描失败" in body["reason"]
+    assert body["engine_available"] is True
+    assert body["engine_version"] == "v6.16.8"
 
 
 async def test_detect_returns_devices(client, monkeypatch) -> None:
@@ -137,7 +160,8 @@ async def test_detect_returns_devices(client, monkeypatch) -> None:
     body = resp.json()
     assert body["adb_available"] is True
     assert body["adb_version"] == "Android Debug Bridge version 1.0.41"
-    assert len(body["devices"]) == 2
+    # offline 端点已过滤（emulator-5554 不可达，不列）
+    assert len(body["devices"]) == 1
     first = body["devices"][0]
     assert first["serial"] == "127.0.0.1:16384"
     assert first["state"] == "device"
@@ -146,6 +170,28 @@ async def test_detect_returns_devices(client, monkeypatch) -> None:
     # Engine (MaaFw) info is surfaced for the env chip (absent in tests → unavailable).
     assert body["engine_available"] is False
     assert body["engine_version"] == "unavailable"
+
+
+async def test_detect_filters_offline_keeps_unauthorized(client, monkeypatch) -> None:
+    """检测列表只显示 device / unauthorized；offline（不可达端点）不列。"""
+    async def _scan_with_offline() -> list:
+        return [
+            adb.AdbDeviceInfo(serial="10.0.0.1:5555", state="unauthorized", model="", host="10.0.0.1", port=5555),
+            adb.AdbDeviceInfo(serial="10.0.0.2:5555", state="offline", model="", host="10.0.0.2", port=5555),
+            adb.AdbDeviceInfo(serial="10.0.0.3:5555", state="device", model="Pixel", host="10.0.0.3", port=5555),
+        ]
+
+    monkeypatch.setattr(adb, "resolve_adb_path", lambda: "C:/adb.exe")
+    monkeypatch.setattr(adb, "adb_version", _fake_version)
+    monkeypatch.setattr(adb, "scan_devices", _scan_with_offline)
+    resp = await client.post("/api/v1/devices/detect")
+    assert resp.status_code == 200
+    body = resp.json()
+    states = [(d["serial"], d["state"]) for d in body["devices"]]
+    assert states == [
+        ("10.0.0.1:5555", "unauthorized"),
+        ("10.0.0.3:5555", "device"),
+    ]
 
 
 async def _fake_version() -> str:

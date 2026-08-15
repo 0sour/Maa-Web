@@ -155,9 +155,9 @@ async def test_settings_groups_default_empty(client) -> None:
     resp = await client.get("/api/v1/settings")
     assert resp.status_code == 200
     body = resp.json()
-    assert set(body) == {"game", "connection", "ui", "notify"}
+    assert set(body) == {"game", "connection", "ui", "notify", "accounts"}
     assert body["game"] == {} and body["connection"] == {}
-    assert body["ui"] == {} and body["notify"] == {}
+    assert body["ui"] == {} and body["notify"] == {} and body["accounts"] == {}
 
 
 async def test_put_and_get_settings_group(client) -> None:
@@ -200,6 +200,40 @@ async def test_put_settings_group_invalid(client) -> None:
     resp = await client.put("/api/v1/settings/bad", json={"values": {"x": 1}})
     assert resp.status_code == 422
     assert "仅支持" in resp.json()["detail"]
+
+
+async def test_accounts_group_roundtrip(client) -> None:
+    """账号组（自动任务账号来源）：PUT /settings/accounts 保存 → GET 回显。"""
+    resp = await client.put(
+        "/api/v1/settings/accounts",
+        json={
+            "values": {
+                "list": [
+                    {"name": "账号A", "client_type": "Official"},
+                    {"name": "账号B", "client_type": "Bilibili"},
+                ]
+            }
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["accounts"]["list"] == [
+        {"name": "账号A", "client_type": "Official"},
+        {"name": "账号B", "client_type": "Bilibili"},
+    ]
+    assert body["game"] == {}  # 其他分组不受影响
+
+    # 再读一次（持久化）
+    resp2 = await client.get("/api/v1/settings")
+    assert resp2.json()["accounts"]["list"][0]["name"] == "账号A"
+
+    # 覆盖保存
+    await client.put(
+        "/api/v1/settings/accounts",
+        json={"values": {"list": [{"name": "账号C", "client_type": "txwy"}]}},
+    )
+    resp3 = await client.get("/api/v1/settings")
+    assert resp3.json()["accounts"]["list"] == [{"name": "账号C", "client_type": "txwy"}]
 
     resp = await client.put("/api/v1/settings/game", json={"values": {"a.b": 1}})
     assert resp.status_code == 422

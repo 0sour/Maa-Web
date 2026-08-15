@@ -32,6 +32,14 @@ export const useTasksStore = defineStore('tasks', {
         return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}` === today
       })
     },
+    /** 普通任务日志（首页/编排页实时面板）：source=normal 或客户端提示行（无 source） */
+    normalTodayLogs(): LiveLogLine[] {
+      return this.todayLogs.filter((l) => l.source !== 'auto' && l.source !== 'manual_auto')
+    },
+    /** 自动任务日志（自动任务页独立面板）：auto（定时）+ manual_auto（手动运行） */
+    autoTodayLogs(): LiveLogLine[] {
+      return this.todayLogs.filter((l) => l.source === 'auto' || l.source === 'manual_auto')
+    },
   },
   actions: {
     /** 拉取指定设备的运行器状态快照 */
@@ -125,6 +133,7 @@ export const useTasksStore = defineStore('tasks', {
           level: e.level,
           message: e.message,
           ts: e.ts,
+          source: e.source as LiveLogLine['source'],
         }))
       } catch {
         /* 回填失败不阻塞实时流 */

@@ -14,6 +14,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
+from app.api.v1.auto_tasks import router as auto_tasks_router
+from app.api.v1.config_backup import router as config_backup_router
 from app.api.v1.copilot import router as copilot_router
 from app.api.v1.devices import router as devices_router
 from app.api.v1.health import router as health_router
@@ -21,6 +23,7 @@ from app.api.v1.notifications import router as notifications_router
 from app.api.v1.resources import router as resources_router
 from app.api.v1.schedules import router as schedules_router
 from app.api.v1.settings import router as settings_router
+from app.api.v1.task_schemes import router as task_schemes_router
 from app.api.v1.tasks import router as tasks_router
 from app.core.config import get_settings
 from app.core.events import on_shutdown, on_startup
@@ -93,6 +96,9 @@ def create_app() -> FastAPI:
     app.include_router(settings_router, prefix="/api/v1")
     app.include_router(copilot_router, prefix="/api/v1")
     app.include_router(schedules_router, prefix="/api/v1")
+    app.include_router(auto_tasks_router, prefix="/api/v1")
+    app.include_router(task_schemes_router, prefix="/api/v1")
+    app.include_router(config_backup_router, prefix="/api/v1")
     app.include_router(notifications_router, prefix="/api/v1")
 
     # Root API info

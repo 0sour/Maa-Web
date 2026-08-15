@@ -7,11 +7,37 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDevicesStore } from '@/stores/devices'
 import { useTasksStore } from '@/stores/tasks'
-import { tasksApi, type LogDayGroup } from '@/api/tasks'
+import { tasksApi, type LogDayGroup, type LogEntry, type LogSourceFilter } from '@/api/tasks'
 import DropSelect, { type DropOption } from '@/tasks/forms/DropSelect.vue'
 
 const devices = useDevicesStore()
 const tasks = useTasksStore()
+
+// ── 来源选择（全部 / 普通任务 / 自动任务；实时与历史共用） ──
+const SRC_OPTS: DropOption[] = [
+  { value: 'all', label: '全部' },
+  { value: 'normal', label: '普通任务' },
+  { value: 'auto', label: '自动任务' },
+]
+const srcFilter = ref<LogSourceFilter>('all')
+const srcFilterModel = computed({
+  get: () => srcFilter.value,
+  set: (v: string) => {
+    srcFilter.value = v as LogSourceFilter
+  },
+})
+
+function srcMatch(l: { source?: string }): boolean {
+  if (srcFilter.value === 'all') return true
+  if (srcFilter.value === 'normal') return l.source !== 'auto' && l.source !== 'manual_auto'
+  return l.source === 'auto' || l.source === 'manual_auto'
+}
+
+function srcBadge(l: { source?: string }): { text: string; cls: 'auto' | 'manual' } | null {
+  if (l.source === 'manual_auto') return { text: '自动任务(手动运行)', cls: 'manual' }
+  if (l.source === 'auto') return { text: '自动任务', cls: 'auto' }
+  return null
+}
 
 // ── 实时区（会话总体日志） ──
 const targetId = ref<number | null>(null)
@@ -54,11 +80,12 @@ async function loadHistory() {
   loading.value = true
   historyErr.value = ''
   try {
+    // 后端按 source=all 全量拉取；每日条目在前端按来源拆分为 [普通任务]/[自动任务]
     const r = await tasksApi.logsByDay(Number(daysRange.value))
     history.value = r.days
-    // 默认展开最新一天
-    if (r.days.length && expanded.value[r.days[0].date] === undefined) {
-      expanded.value[r.days[0].date] = true
+    // 默认展开最新一天的 [普通任务] 条目
+    if (dayEntries.value.length && expanded.value[dayEntries.value[0].key] === undefined) {
+      expanded.value[dayEntries.value[0].key] = true
     }
   } catch (e: unknown) {
     historyErr.value = (e as { message?: string })?.message ?? '历史日志加载失败'
@@ -67,8 +94,39 @@ async function loadHistory() {
   }
 }
 
-function toggleDay(date: string) {
-  expanded.value[date] = !expanded.value[date]
+function toggleDay(key: string) {
+  expanded.value[key] = !expanded.value[key]
+}
+
+/** 历史条目 = (日期 × 来源) 拆分；同日 [普通任务] 在前、[自动任务] 在后 */
+interface DayEntry {
+  key: string
+  date: string
+  source: 'normal' | 'auto'
+  entries: LogEntry[]
+}
+
+const dayEntries = computed<DayEntry[]>(() => {
+  const out: DayEntry[] = []
+  for (const g of history.value) {
+    const normal = g.entries.filter((e) => e.source !== 'auto' && e.source !== 'manual_auto')
+    const auto = g.entries.filter((e) => e.source === 'auto' || e.source === 'manual_auto')
+    if (normal.length) out.push({ key: `${g.date}-normal`, date: g.date, source: 'normal', entries: normal })
+    if (auto.length) out.push({ key: `${g.date}-auto`, date: g.date, source: 'auto', entries: auto })
+  }
+  return out
+})
+
+/** 按「显示」选择器过滤后的历史条目 */
+const visibleDays = computed<DayEntry[]>(() =>
+  dayEntries.value.filter((d) => srcFilter.value === 'all' || d.source === srcFilter.value),
+)
+
+/** 自动任务条目内「手动运行」行数（橙色徽章计数） */
+function manualCount(d: DayEntry): number {
+  return d.source === 'auto'
+    ? d.entries.filter((e) => e.source === 'manual_auto').length
+    : 0
 }
 
 // ── 分级过滤 + 关键字搜索（本地过滤，实时/历史共用） ──
@@ -91,12 +149,12 @@ function matches(e: { level?: string; message?: string }): boolean {
   return true
 }
 
-const filteredLive = computed(() => tasks.todayLogs.filter(matches))
-function filteredCount(g: LogDayGroup): number {
-  return g.entries.filter(matches).length
+const filteredLive = computed(() => tasks.todayLogs.filter((l) => srcMatch(l) && matches(l)))
+function filteredCount(d: DayEntry): number {
+  return d.entries.filter(matches).length
 }
-function filteredEntries(g: LogDayGroup): LogDayGroup['entries'] {
-  return g.entries.filter(matches)
+function filteredEntries(d: DayEntry): DayEntry['entries'] {
+  return d.entries.filter(matches)
 }
 
 // ── 日志渲染 ──
@@ -180,24 +238,33 @@ onBeforeUnmount(() => {
         <div class="panel">
           <div class="panel-hd">
             <span class="t">实时日志</span>
+            <div class="src-filter">
+              <label>显示</label>
+              <DropSelect v-model="srcFilterModel" :options="SRC_OPTS" />
+            </div>
             <span class="sub">{{ filteredLive.length }} / {{ tasks.todayLogs.length }} 行（当天）</span>
           </div>
           <div ref="logBox" class="log">
             <div v-if="filteredLive.length === 0" class="log-empty">
-              {{ tasks.todayLogs.length === 0 ? '今天暂无日志——执行任务后将实时显示于此' : '无匹配日志（调整级别筛选或关键字）' }}
+              {{ tasks.todayLogs.length === 0 ? '今天暂无日志——执行任务后将实时显示于此' : '无匹配日志（调整来源/级别筛选或关键字）' }}
             </div>
             <div v-for="(l, i) in filteredLive" :key="i" class="l">
               <span class="t">{{ fmtTime(l.ts ?? '') }}</span>
+              <span v-if="srcBadge(l)" class="src" :class="srcBadge(l)!.cls">{{ srcBadge(l)!.text }}</span>
               <span :class="levelCls(l.level)">{{ tagOf(l.level) }}</span>
               <span class="c-dim">{{ l.message }}</span>
             </div>
           </div>
         </div>
 
-        <!-- 右：历史日志 · 按天分割 -->
+        <!-- 右：历史日志 · 按天分割（每天 = [普通任务] + [自动任务] 两个条目） -->
         <div class="panel">
           <div class="panel-hd">
             <span class="t">历史日志</span>
+            <div class="src-filter">
+              <label>显示</label>
+              <DropSelect v-model="srcFilterModel" :options="SRC_OPTS" />
+            </div>
             <span class="sub">按天分割 · 跨运行</span>
             <div class="hd-right">
               <DropSelect v-model="daysRange" :options="daysOpts" />
@@ -208,22 +275,27 @@ onBeforeUnmount(() => {
           </div>
           <div class="hist">
             <div v-if="historyErr" class="hist-err">⚠ {{ historyErr }}</div>
-            <div v-else-if="history.length === 0" class="hist-empty">
-              暂无历史日志（过去 {{ daysRange }} 天内）——当天日志在左侧实时区，次日归档到这里
+            <div v-else-if="visibleDays.length === 0" class="hist-empty">
+              暂无匹配的历史日志（过去 {{ daysRange }} 天内）——当天日志在左侧实时区，次日归档到这里
             </div>
-            <div v-for="g in history" :key="g.date" class="day">
-              <button type="button" class="day-hd" @click="toggleDay(g.date)">
-                <span class="mark" :class="{ open: expanded[g.date] }"></span>
-                <span class="date">{{ g.date }}</span>
-                <span class="count">{{ filteredCount(g) }} / {{ g.count }} 行</span>
+            <div v-for="d in visibleDays" :key="d.key" class="day">
+              <button type="button" class="day-hd" @click="toggleDay(d.key)">
+                <span class="mark" :class="{ open: expanded[d.key] }"></span>
+                <span class="date">{{ d.date }}</span>
+                <span class="badge" :class="d.source === 'auto' ? 'auto' : 'normal'">
+                  {{ d.source === 'auto' ? '自动任务' : '普通任务' }}
+                </span>
+                <span v-if="manualCount(d)" class="badge manual">手动 {{ manualCount(d) }}</span>
+                <span class="count">{{ filteredCount(d) }} / {{ d.entries.length }} 行</span>
               </button>
-              <div v-if="expanded[g.date]" class="day-body">
-                <div v-for="(e, i) in filteredEntries(g)" :key="i" class="l">
+              <div v-if="expanded[d.key]" class="day-body">
+                <div v-for="(e, i) in filteredEntries(d)" :key="i" class="l">
                   <span class="t">{{ fmtTime(e.ts) }}</span>
+                  <span v-if="srcBadge(e)" class="src" :class="srcBadge(e)!.cls">{{ srcBadge(e)!.text }}</span>
                   <span :class="levelCls(e.level)">{{ tagOf(e.level) }}</span>
                   <span class="c-dim">{{ e.message }}</span>
                 </div>
-                <div v-if="filteredCount(g) === 0" class="hist-empty-sm">无匹配日志</div>
+                <div v-if="filteredCount(d) === 0" class="hist-empty-sm">无匹配日志</div>
               </div>
             </div>
           </div>
@@ -300,10 +372,38 @@ onBeforeUnmount(() => {
   content: ""; width: 14px; height: 14px;
   border: 1px solid var(--color-brand); transform: rotate(45deg); flex-shrink: 0;
 }
-.panel-hd .t { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); letter-spacing: var(--font-tracking-wide); }
-.panel-hd .sub { margin-left: auto; font-size: var(--font-size-sm); color: var(--color-text-tertiary); letter-spacing: 0.5px; }
-.hd-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.hd-right .ds { min-width: 120px; }
+.panel-hd .t { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); letter-spacing: var(--font-tracking-wide); flex-shrink: 0; }
+/* 说明文字可压缩省略；控件（选择器/按钮）禁止压缩，避免按钮被压成竖排 */
+.panel-hd .sub {
+  margin-left: auto; font-size: var(--font-size-sm); color: var(--color-text-tertiary);
+  letter-spacing: 0.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hd-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.hd-right .ds { min-width: 120px; flex-shrink: 0; }
+.hd-right .add-btn { flex-shrink: 0; white-space: nowrap; }
+
+/* 来源选择框（实时/历史） */
+.src-filter { display: flex; align-items: center; gap: 8px; margin-left: 6px; flex-shrink: 0; }
+.src-filter label { font-size: var(--font-size-2xs); color: var(--color-text-tertiary); letter-spacing: 0.5px; flex-shrink: 0; }
+.src-filter .ds { min-width: 110px; }
+
+/* 来源徽章（行级） */
+.src {
+  font-size: var(--font-size-2xs); border: 1px solid var(--color-border-default);
+  padding: 0 5px; letter-spacing: 0.5px; flex-shrink: 0; align-self: center;
+}
+.src.auto { color: var(--color-brand); border-color: var(--color-brand-strong); }
+.src.manual { color: var(--color-warning); border-color: var(--color-warning); }
+
+/* 每日条目标签（[普通任务]/[自动任务]/[手动 N]） */
+.badge {
+  font-size: var(--font-size-2xs); border: 1px solid var(--color-border-strong);
+  padding: 1px 7px; letter-spacing: 1px; font-family: var(--font-family-sans);
+  color: var(--color-text-secondary); flex-shrink: 0;
+}
+.badge.auto { color: var(--color-brand); border-color: var(--color-brand-strong); }
+.badge.manual { color: var(--color-warning); border-color: var(--color-warning); }
 .add-btn {
   background: none; border: 1px solid var(--color-brand-strong);
   color: var(--color-brand); font-size: var(--font-size-sm);

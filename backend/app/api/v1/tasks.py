@@ -6,14 +6,18 @@ Routes:
     GET    /tasks/{device_id}/status    当前队列状态（idle/running/…）
     GET    /tasks/runs/{run_id}/logs    某次运行的历史日志
     WS     /ws/logs?device_id=N         实时日志流（S-05）
+    GET    /tasks/queue-drafts          队列草稿（daily 首页队列 / tasks 编排草稿）
+    PUT    /tasks/queue-drafts/{key}    保存队列草稿（后端化，跨浏览器一致）
 """
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi import status as http_status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +25,7 @@ from app.db.session import get_session
 from app.engine import asstproxy, eventbus, taskrunner
 from app.engine.taskrunner import TaskQueueError, TaskRunner
 from app.models.device import Device
+from app.models.setting import Setting
 from app.models.task import LogEntry
 from app.schemas.task import (
     LogDayGroup,
@@ -107,8 +112,17 @@ def _entry_read(e: LogEntry) -> LogEntryRead:
         ts = ts.replace(tzinfo=timezone.utc)
     return LogEntryRead(
         id=e.id, run_id=e.run_id, device_id=e.device_id,
-        level=e.level, message=e.message, ts=ts,
+        source=e.source, level=e.level, message=e.message, ts=ts,
     )
+
+
+def _source_filter(q, source: str):
+    """日志来源过滤：all → 全部；normal → 仅普通任务；auto → 自动任务（含手动运行）。"""
+    if source == "normal":
+        return q.where(LogEntry.source == "normal")
+    if source == "auto":
+        return q.where(LogEntry.source.in_(("auto", "manual_auto")))
+    return q
 
 
 @router.get("/runs/{run_id}/logs", response_model=list[LogEntryRead])
@@ -135,12 +149,14 @@ def _utc_naive(dt: datetime) -> datetime:
 async def logs_by_day(
     days: int = 7,
     device_id: int | None = None,
+    source: str = "all",
     limit: int = 2000,
     session: AsyncSession = Depends(get_session),
 ) -> LogsByDayRead:
     """历史日志：今天之前的 N 天（本地时区），按天分组倒序，天内时间正序。
 
     当天日志由 GET /tasks/logs/today 提供（实时面板）；当天过了才归档到这里。
+    source=all|normal|auto（auto 含手动运行的 manual_auto 行）。
     """
     days = max(1, min(days, 30))
     limit = max(100, min(limit, 5000))
@@ -150,6 +166,7 @@ async def logs_by_day(
     q = select(LogEntry).where(LogEntry.ts >= utc_since, LogEntry.ts < utc_before)
     if device_id is not None:
         q = q.where(LogEntry.device_id == device_id)
+    q = _source_filter(q, source)
     rows = (
         (await session.execute(q.order_by(LogEntry.ts.desc()).limit(limit)))
         .scalars()
@@ -174,16 +191,21 @@ async def logs_by_day(
 @router.get("/logs/today", response_model=LogDayGroup)
 async def logs_today(
     device_id: int | None = None,
+    source: str = "all",
     limit: int = 2000,
     session: AsyncSession = Depends(get_session),
 ) -> LogDayGroup:
-    """当天日志（本地时区，时间正序）——实时面板回填用，跨页面保留。"""
+    """当天日志（本地时区，时间正序）——实时面板回填用，跨页面保留。
+
+    source=all|normal|auto（auto 含手动运行的 manual_auto 行）。
+    """
     limit = max(100, min(limit, 5000))
     local_today = _local_day_start(datetime.now())
     utc_since = _utc_naive(local_today)
     q = select(LogEntry).where(LogEntry.ts >= utc_since)
     if device_id is not None:
         q = q.where(LogEntry.device_id == device_id)
+    q = _source_filter(q, source)
     rows = (
         (await session.execute(q.order_by(LogEntry.id).limit(limit)))
         .scalars()
@@ -196,8 +218,63 @@ async def logs_today(
     )
 
 
-# ── WebSocket log stream (S-05) ─────────────────────────────────────────
+# ── 队列草稿（后端化：首页作战部署 / 编排页草稿，跨浏览器一致） ──────────
 
+# 草稿 key 前缀（Setting 表）；与前端 useTaskQueue 草稿语义对应
+_QUEUE_DRAFT_KEYS = ("daily", "tasks")
+
+
+async def _load_queue_draft(session: AsyncSession, key: str) -> list:
+    row = await session.get(Setting, f"queue_draft.{key}")
+    if row is None:
+        return []
+    try:
+        parsed = json.loads(row.value)
+        return parsed if isinstance(parsed, list) else []
+    except (ValueError, TypeError):
+        return []
+
+
+@router.get("/queue-drafts")
+async def get_queue_drafts(
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """读取全部队列草稿（daily=首页作战部署队列，tasks=编排页编辑草稿）。"""
+    return {
+        key: await _load_queue_draft(session, key)
+        for key in _QUEUE_DRAFT_KEYS
+    }
+
+
+class QueueDraftPayload(BaseModel):
+    """PUT /tasks/queue-drafts/{key} 请求体 — 队列草稿（PersistedTask 数组）。"""
+
+    tasks: list[dict] = Field(default_factory=list)
+
+
+@router.put("/queue-drafts/{key}")
+async def save_queue_draft(
+    key: str,
+    payload: QueueDraftPayload,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """保存队列草稿（单份全局，任意浏览器读写一致）。"""
+    if key not in _QUEUE_DRAFT_KEYS:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"草稿键仅支持 {'/'.join(_QUEUE_DRAFT_KEYS)}",
+        )
+    full = f"queue_draft.{key}"
+    row = await session.get(Setting, full)
+    if row is None:
+        session.add(Setting(key=full, value=json.dumps(payload.tasks, ensure_ascii=False)))
+    else:
+        row.value = json.dumps(payload.tasks, ensure_ascii=False)
+    await session.commit()
+    return {"ok": True, "key": key}
+
+
+# ── WebSocket log stream (S-05) ─────────────────────────────────────────
 @router.websocket("/ws/logs")
 async def ws_logs(websocket: WebSocket, device_id: int) -> None:
     """Live log stream for one device. Query: /api/v1/tasks/ws/logs?device_id=N"""

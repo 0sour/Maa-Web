@@ -295,6 +295,31 @@ class TestToAsstTask:
         assert ttype == "CloseDown"
         assert params["client_type"] == "Bilibili"
 
+    # ── 账号切换（自动任务账号轮换：StartUp/CloseDown 注入 account_name） ──
+
+    def test_startup_injects_account_name(self):
+        item = TaskItem(name="启动游戏", entry="StartUp", type="启动游戏", params={})
+        ttype, params = asstproxy.to_asst_task(item, account_name="账号A")
+        assert params["account_name"] == "账号A"
+
+    def test_startup_keeps_explicit_account_name(self):
+        item = TaskItem(
+            name="启动游戏", entry="StartUp", type="启动游戏",
+            params={"account_name": "显式账号"},
+        )
+        ttype, params = asstproxy.to_asst_task(item, account_name="账号A")
+        assert params["account_name"] == "显式账号"
+
+    def test_closedown_injects_account_name(self):
+        item = TaskItem(name="关闭游戏", entry="CloseDown", type="关闭游戏", params={})
+        ttype, params = asstproxy.to_asst_task(item, account_name="账号A")
+        assert params["account_name"] == "账号A"
+
+    def test_non_startup_ignores_account_name(self):
+        item = TaskItem(name="刷理智", entry="Fight", type="刷理智", params={})
+        ttype, params = asstproxy.to_asst_task(item, account_name="账号A")
+        assert "account_name" not in params
+
     # ── Copilot 参数（对齐引擎 CopilotTask 键名） ─────────────────
 
     def test_copilot_legacy_auto_squad_mapped(self):

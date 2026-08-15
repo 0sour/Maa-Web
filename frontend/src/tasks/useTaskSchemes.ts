@@ -1,66 +1,81 @@
 /**
  * useTaskSchemes — 任务方案「任务文件」管理（任务编排页用）。
  *
- * 方案 = 命名后的任务队列（含固化参数/勾选/ONCE），存 localStorage，
- * 之后可在任务编排页随时调出复用。作战总览不依赖此模块（走即时保存）。
+ * 方案 = 命名后的任务队列（含固化参数/勾选/ONCE），**存后端 task_schemes 表**
+ * （2026-08-16 起；此前存 localStorage 换浏览器/设备丢失）。首次加载时
+ * 自动把旧 localStorage 数据迁移到后端（后端为空且本地有 → 上传 → 清理本地）。
  */
 import { ref } from 'vue'
+import { taskSchemesApi, type TaskScheme } from '@/api/task-schemes'
 import type { PersistedTask } from './taskTypes'
 
-export interface TaskScheme {
-  name: string
-  tasks: PersistedTask[]
-  updatedAt: string
-}
+const LEGACY_KEY = 'maaweb.task.schemes'
 
-const STORAGE_KEY = 'maaweb.task.schemes'
-
-function load(): TaskScheme[] {
+function loadLegacy(): { name: string; tasks: PersistedTask[]; updatedAt: string }[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(LEGACY_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? parsed as TaskScheme[] : []
+    return Array.isArray(parsed) ? (parsed as { name: string; tasks: PersistedTask[]; updatedAt: string }[]) : []
   } catch {
     return []
   }
 }
 
-function persist(list: TaskScheme[]) {
+function clearLegacy() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+    localStorage.removeItem(LEGACY_KEY)
   } catch {
-    /* quota / 隐私模式 —— 忽略，仅本次会话有效 */
+    /* 忽略 */
   }
 }
 
 export function useTaskSchemes() {
-  const schemes = ref<TaskScheme[]>(load())
+  const schemes = ref<TaskScheme[]>([])
+  const loaded = ref(false)
 
-  /** 保存当前队列为方案；同名覆盖。返回该方案 */
-  function saveScheme(name: string, tasks: PersistedTask[]): TaskScheme {
+  /** 从后端加载；后端为空时迁移旧 localStorage 数据（一次性） */
+  async function load() {
+    try {
+      schemes.value = await taskSchemesApi.list()
+      if (schemes.value.length === 0) {
+        const legacy = loadLegacy()
+        if (legacy.length) {
+          for (const s of legacy) {
+            try {
+              schemes.value.push(
+                await taskSchemesApi.save(s.name, s.tasks as unknown as Record<string, unknown>[]),
+              )
+            } catch {
+              /* 单条迁移失败不阻塞其余 */
+            }
+          }
+          if (schemes.value.length) clearLegacy()
+        }
+      }
+    } catch {
+      /* 后端不可达：保留空列表，不阻塞页面 */
+    } finally {
+      loaded.value = true
+    }
+  }
+
+  /** 保存当前队列为方案；同名覆盖（upsert）。返回该方案 */
+  async function saveScheme(name: string, tasks: PersistedTask[]): Promise<TaskScheme> {
     const trimmed = name.trim()
-    const now = new Date().toISOString()
+    const saved = await taskSchemesApi.save(trimmed, tasks as unknown as Record<string, unknown>[])
     const idx = schemes.value.findIndex((s) => s.name === trimmed)
-    const scheme: TaskScheme = { name: trimmed, tasks, updatedAt: now }
-    if (idx >= 0) schemes.value[idx] = scheme
-    else schemes.value.push(scheme)
-    persist(schemes.value)
-    return scheme
+    if (idx >= 0) schemes.value[idx] = saved
+    else schemes.value.push(saved)
+    return saved
   }
 
-  function removeScheme(name: string) {
-    schemes.value = schemes.value.filter((s) => s.name !== name)
-    persist(schemes.value)
+  async function removeScheme(name: string) {
+    const s = schemes.value.find((x) => x.name === name)
+    if (!s) return
+    await taskSchemesApi.remove(s.id)
+    schemes.value = schemes.value.filter((x) => x.name !== name)
   }
 
-  function renameScheme(oldName: string, newName: string): boolean {
-    const s = schemes.value.find((x) => x.name === oldName)
-    if (!s) return false
-    s.name = newName.trim()
-    persist(schemes.value)
-    return true
-  }
-
-  return { schemes, saveScheme, removeScheme, renameScheme }
+  return { schemes, loaded, load, saveScheme, removeScheme }
 }

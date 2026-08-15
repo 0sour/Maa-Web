@@ -291,3 +291,4 @@ async def proxy_test(payload: ProxyTestPayload) -> dict:
             "latency_ms": None,
             "error": str(exc)[:200] or "连接失败",
         }
+

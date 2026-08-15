@@ -34,6 +34,8 @@ class LogEntryRead(BaseModel):
     id: int
     run_id: int
     device_id: int
+    # 日志来源：normal（普通任务）| auto（定时自动任务）| manual_auto（自动任务·手动运行）
+    source: str = "normal"
     level: str
     message: str
     ts: datetime

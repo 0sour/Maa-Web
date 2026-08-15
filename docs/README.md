@@ -14,7 +14,7 @@
 ## 快速索引
 
 - 全部功能清单（含编号）：见 [PRD §4](./PRD.md#4-功能需求与-maa-桌面端逐项对齐)
-- 真实实现进度（与代码核对）：见 [PRD §4.5](./PRD.md#45-实现进度总览2026-08-15-核对) 与 [roadmap 里程碑状态表](./roadmap.md#里程碑状态表)
+- 真实实现进度（与代码核对）：见 [PRD §4.5](./PRD.md#45-实现进度总览2026-08-16-核对) 与 [roadmap 里程碑状态表](./roadmap.md#里程碑状态表)
 - 引擎任务参数规范：以**客户端源码模型**为准（`参考/MaaAssistantArknights/src/MaaWpfGui/Configuration/Single/MaaTask/`），协议文档见 [MAA 集成文档](https://docs.maa.plus/zh-cn/protocol/integration.html)
 - 远程控制协议：~~已裁掉~~（NAS 端口访问即远程控制，2026-08-14 决定），相关代码见 [architecture §3.8](./architecture.md)
 
@@ -23,6 +23,8 @@
 | 文件 | 说明 |
 |------|------|
 | [03-arknights.html](../ui-design/03-arknights.html) | 选用风格设计稿：明日方舟主题总览仪表盘（可独立打开预览） |
+| [09-autotask-account-detail.html](../ui-design/09-autotask-account-detail.html) | 自动任务页设计稿（终版）：时间槽 × 账号 × 方案配置 + RUN TEST + 独立日志 |
+| [10-logs-source.html](../ui-design/10-logs-source.html) | 作战日志按来源区分设计稿：实时/历史来源选择框 + 每日 [普通任务]/[自动任务] 分列 |
 | [07-component-gallery.html](../ui-design/07-component-gallery.html) | 全控件组件画廊：按钮/输入/下拉/表单/列表/日志等全部交互控件示例 |
 | [design-system-arknights.md](../ui-design/design-system-arknights.md) | 设计规范：Token 体系、组件 Props/States 契约、模板页面、无障碍标准 |
 

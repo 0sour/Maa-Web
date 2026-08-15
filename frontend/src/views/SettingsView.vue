@@ -12,6 +12,7 @@ import UpdateSettingsPanel from '@/settings/panels/UpdateSettingsPanel.vue'
 import IssueReportPanel from '@/settings/panels/IssueReportPanel.vue'
 import AboutPanel from '@/settings/panels/AboutPanel.vue'
 import ExternalNotificationPanel from '@/settings/panels/ExternalNotificationPanel.vue'
+import AccountGroupsPanel from '@/settings/panels/AccountGroupsPanel.vue'
 
 interface SettingGroup {
   key: string
@@ -26,11 +27,12 @@ interface SettingGroup {
 // ——原因见「关于我们」面板。
 const GROUPS: SettingGroup[] = [
   {
-    key: 'schedule', label: '定时执行', ready: true,
-    done: '功能已落地：请使用侧栏「指挥 → 定时执行」页（星期 × 时间自动执行任务方案）',
+    key: 'schedule', label: '自动任务', ready: true,
+    done: '功能已落地：请使用侧栏「指挥 → 自动任务」页（时间槽 × 账号 × 方案，定时执行与账号轮换）',
   },
   { key: 'game', label: '运行设置', ready: true },
   { key: 'connection', label: '连接设置', ready: true },
+  { key: 'accounts', label: '账号组', ready: true },
   { key: 'ui', label: '界面设置', ready: true },
   { key: 'notification', label: '外部通知', ready: true },
   { key: 'update', label: '更新设置', ready: true },
@@ -49,7 +51,7 @@ const current = () => GROUPS.find((g) => g.key === active.value) ?? GROUPS[0]
         <span class="diamond"></span>
         <div>
           <h2>设置</h2>
-          <p class="sub">对齐 MAA 客户端设置窗口 · 8 组（已裁剪桌面专属 / 配置切换 / 远程控制 / 成就）</p>
+          <p class="sub">对齐 MAA 客户端设置窗口 · 9 组（已裁剪桌面专属 / 配置切换 / 远程控制 / 成就）</p>
         </div>
       </div>
     </div>
@@ -75,6 +77,7 @@ const current = () => GROUPS.find((g) => g.key === active.value) ?? GROUPS[0]
       <div class="st-content">
         <GameSettingsPanel v-if="active === 'game'" />
         <ConnectionSettingsPanel v-else-if="active === 'connection'" />
+        <AccountGroupsPanel v-else-if="active === 'accounts'" />
         <UiSettingsPanel v-else-if="active === 'ui'" />
         <UpdateSettingsPanel v-else-if="active === 'update'" />
         <IssueReportPanel v-else-if="active === 'issue'" />
