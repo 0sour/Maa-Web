@@ -63,7 +63,8 @@ services:
       - MAAWEB_SECRET_KEY=${MAAWEB_SECRET_KEY:-auto-generate-on-start}
       # 本地时区（日志按天归档、定时执行、主题日出日落均依赖）
       - TZ=${TZ:-Asia/Shanghai}
-      - DATABASE_URL=sqlite:////data/config/maaweb.db
+      # 必须 sqlite+aiosqlite（异步驱动）；写错前缀会导致启动失败
+      - DATABASE_URL=sqlite+aiosqlite:////data/config/maaweb.db
       - MAA_RESOURCE_DIR=/data/cache/maa-resource
       # 引擎包平台（ctypes 直调 MaaCore 官方发布包）：NAS ARM 默认 linux-aarch64，
       # AMD64 NAS 在 .env 里设 MAAWEB_RESOURCE_PLATFORM=linux-x86_64
