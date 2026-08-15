@@ -24,6 +24,8 @@ export interface MirrorSourceSettings {
   mirrorchyan_cdk_message: string
   /** HTTP 代理（clash 等场景）；空 = 直连 */
   http_proxy: string
+  /** 动态资源（MaaResource）独立源：空 = 跟随 update_source；github | mirrorchyan */
+  dynamic_source: string
 }
 
 export interface MirrorSourceUpdate {
@@ -35,6 +37,8 @@ export interface MirrorSourceUpdate {
   mirrorchyan_cdk?: string
   /** HTTP 代理；空字符串 = 清除（恢复直连） */
   http_proxy?: string
+  /** 动态资源源：空 = 跟随引擎包源；github | mirrorchyan 显式指定 */
+  dynamic_source?: string
 }
 
 export interface MirrorCdkCheckResult {
