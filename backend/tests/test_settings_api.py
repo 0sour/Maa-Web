@@ -291,3 +291,64 @@ async def test_geoip_service_failure(client, monkeypatch) -> None:
     resp = await client.get("/api/v1/settings/geoip")
     assert resp.status_code == 502
     assert "定位服务不可用" in resp.json()["detail"]
+
+
+async def test_proxy_test_success(client, monkeypatch) -> None:
+    """POST /settings/proxy-test：经代理访问成功 → ok + 耗时。"""
+    from app.api.v1 import settings as settings_mod
+
+    class _Resp:
+        def raise_for_status(self) -> None:
+            pass
+
+    class _Client:
+        def __init__(self, *a, **k):
+            self.kw = k
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url, **kw) -> _Resp:
+            assert url == "https://api.github.com/rate_limit"
+            assert self.kw.get("proxy") == "http://127.0.0.1:7890"
+            return _Resp()
+
+    monkeypatch.setattr(settings_mod.httpx, "AsyncClient", _Client)
+    resp = await client.post(
+        "/api/v1/settings/proxy-test",
+        json={"proxy": "http://127.0.0.1:7890"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["latency_ms"] >= 0 and body["error"] is None
+
+
+async def test_proxy_test_failure(client, monkeypatch) -> None:
+    """代理不可达 → ok=False + 错误信息。"""
+    from app.api.v1 import settings as settings_mod
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url, **kw):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(settings_mod.httpx, "AsyncClient", _Client)
+    resp = await client.post(
+        "/api/v1/settings/proxy-test", json={"proxy": "http://127.0.0.1:9"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is False
+    assert "connection refused" in body["error"]

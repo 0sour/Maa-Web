@@ -75,6 +75,14 @@ export const settingsApi = {
     http.put<SettingsGroups>(`/v1/settings/${group}`, { values }).then((r) => r.data),
   /** IP 定位（NAS 出口 IP → 当地经纬度；浏览器 geolocation 不可用时的兜底） */
   geoip: () => http.get<GeoIpResult>('/v1/settings/geoip').then((r) => r.data),
+  /** 测试 HTTP 代理连通性（经代理访问 GitHub API） */
+  proxyTest: (proxy: string) =>
+    http
+      .post<{ ok: boolean; latency_ms: number | null; error: string | null }>(
+        '/v1/settings/proxy-test',
+        { proxy },
+      )
+      .then((r) => r.data),
   /** 导出日志 zip（问题反馈） */
   exportLogs: async (): Promise<Blob> => {
     const r = await http.get('/v1/settings/logs-export', { responseType: 'blob' })

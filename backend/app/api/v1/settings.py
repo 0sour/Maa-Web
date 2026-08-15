@@ -17,6 +17,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import time
 import zipfile
 from datetime import datetime, timezone
 
@@ -24,6 +25,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -245,3 +247,38 @@ async def geoip() -> dict:
         "city": str(data.get("city", "")),
         "country": str(data.get("country", "")),
     }
+
+
+class ProxyTestPayload(BaseModel):
+    """HTTP 代理连通性测试请求体。"""
+
+    proxy: str = ""
+
+
+@router.post("/proxy-test")
+async def proxy_test(payload: ProxyTestPayload) -> dict:
+    """测试 HTTP 代理连通性：经代理访问 GitHub API（轻量请求），返回耗时或错误。
+
+    供设置页「更新设置 → HTTP 代理 → 测试连通性」按钮使用。
+    """
+    proxy = payload.proxy.strip()
+    start = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(
+            timeout=8.0,
+            proxy=proxy or None,
+            headers={"User-Agent": "Maa-Web/0.1"},
+        ) as client:
+            resp = await client.get("https://api.github.com/rate_limit")
+            resp.raise_for_status()
+        return {
+            "ok": True,
+            "latency_ms": int((time.perf_counter() - start) * 1000),
+            "error": None,
+        }
+    except Exception as exc:  # noqa: BLE001 - 测试失败返回错误信息
+        return {
+            "ok": False,
+            "latency_ms": None,
+            "error": str(exc)[:200] or "连接失败",
+        }

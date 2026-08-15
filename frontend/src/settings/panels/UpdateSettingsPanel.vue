@@ -44,6 +44,25 @@ function deriveCdkStatus(s: MirrorSourceSettings) {
   else cdkStatus.value = 'valid'
 }
 
+const proxyTesting = ref(false)
+const proxyResult = ref<{ ok: boolean; latency_ms: number | null; error: string | null } | null>(null)
+
+async function testProxy() {
+  proxyTesting.value = true
+  proxyResult.value = null
+  try {
+    proxyResult.value = await settingsApi.proxyTest(mirror.http_proxy.trim())
+  } catch (e: unknown) {
+    proxyResult.value = {
+      ok: false,
+      latency_ms: null,
+      error: (e as { message?: string })?.message ?? '测试失败',
+    }
+  } finally {
+    proxyTesting.value = false
+  }
+}
+
 async function checkCdk() {
   const cdk = mirror.mirrorchyan_cdk.trim()
   if (!cdk) {
@@ -218,7 +237,15 @@ onMounted(load)
       </div>
       <div class="f-row f-col">
         <label class="f-label">HTTP 代理 <small>可选</small></label>
-        <input v-model="mirror.http_proxy" placeholder="http://192.168.10.110:7890" spellcheck="false" />
+        <div class="proxy-row">
+          <input v-model="mirror.http_proxy" placeholder="http://192.168.10.110:7890" spellcheck="false" />
+          <button class="btn btn-sm" :disabled="proxyTesting" @click="testProxy">
+            {{ proxyTesting ? '测试中…' : '测试连通性' }}
+          </button>
+        </div>
+        <p v-if="proxyResult" class="proxy-result" :class="proxyResult.ok ? 'ok' : 'bad'">
+          {{ proxyResult.ok ? `✔ 代理连通（${proxyResult.latency_ms}ms）` : `✖ 代理不可达：${proxyResult.error}` }}
+        </p>
         <p class="hint">GitHub 官方直连不通时可填代理地址（如 NAS 上 clash 的 7890 端口）；留空 = 直连。对版本查询与引擎包下载均生效。</p>
       </div>
     </template>
@@ -273,6 +300,11 @@ onMounted(load)
 </template>
 
 <style scoped>
+.proxy-row { display: flex; align-items: center; gap: 8px; }
+.proxy-row input { flex: 1; }
+.proxy-result { font-size: var(--font-size-sm); margin: 0; }
+.proxy-result.ok { color: var(--color-success); }
+.proxy-result.bad { color: var(--color-danger); }
 .src-options { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; }
 .src-opt {
   flex: 1; min-width: 200px;
