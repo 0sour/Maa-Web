@@ -27,14 +27,15 @@
 }
 .f-ctrl input:focus { border-color: var(--color-brand); }
 
-/* 行内独立输入/多行文本（f-row 直挂，非 f-ctrl 包裹）——统一主题样式 */
-.f-row > input[type='text'], .f-row > input[type='password'], .f-row > textarea {
+/* 纵向行（f-col）内的独立输入/多行文本——对齐组件画廊 .input（深色底/无圆角/金色聚焦） */
+.f-row.f-col input[type='text'], .f-row.f-col input[type='password'], .f-row.f-col textarea {
   background: var(--color-bg-subtle); color: var(--color-text-primary);
   border: 1px solid var(--color-border-default);
-  padding: 6px 11px; font-size: var(--font-size-md); outline: none;
-  font-family: inherit; width: 100%;
+  padding: 9px 12px; font-size: var(--font-size-md); outline: none;
+  font-family: inherit; width: 100%; border-radius: 0;
 }
-.f-row > input:focus, .f-row > textarea:focus { border-color: var(--color-brand); }
+.f-row.f-col input::placeholder, .f-row.f-col textarea::placeholder { color: var(--color-text-tertiary); }
+.f-row.f-col input:focus, .f-row.f-col textarea:focus { border-color: var(--color-brand-strong); }
 
 /* 子选项区（主题=自动时的切换依据/时间设定），缩进 + 虚线引导线 */
 .f-sub {
