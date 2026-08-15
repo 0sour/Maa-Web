@@ -1147,3 +1147,34 @@ def test_roguelike_core_chars_missing_or_corrupt(res_env):
     (res_env / "resource" / "roguelike" / "Sami" / "recruitment.json").write_text("bad", encoding="utf-8")
     resource_mgr.roguelike_core_chars.cache_clear()
     assert resource_mgr.roguelike_core_chars("Sami") == []
+
+
+class TestUpdateQueryFailureState:
+    """update() 查询失败必须写入 _UPDATE（否则前端轮询 status 误显示「已更新」）。"""
+
+    async def test_mirrorchyan_query_failure_writes_state(self, monkeypatch, res_env):
+        monkeypatch.setattr(runtime_settings, "update_source", lambda: "mirrorchyan")
+        monkeypatch.setattr(runtime_settings, "mirrorchyan_cdk", lambda: "A" * 24)
+
+        async def _fail():
+            return None
+
+        monkeypatch.setattr(resource_mgr, "remote_latest_mirrorchyan", _fail)
+        result = await resource_mgr.update()
+        assert result["error"] is not None
+        assert "Mirror酱" in result["error"]
+        # 状态已写入：/resources/status 轮询能读到真实错误
+        assert resource_mgr._UPDATE["stage"] == "error"
+        assert resource_mgr._UPDATE["error"] == result["error"]
+
+    async def test_github_query_failure_writes_state(self, monkeypatch, res_env):
+        monkeypatch.setattr(runtime_settings, "update_source", lambda: "github")
+
+        async def _fail():
+            return None
+
+        monkeypatch.setattr(resource_mgr, "remote_latest", _fail)
+        result = await resource_mgr.update()
+        assert result["error"] is not None
+        assert "官方最新版本" in result["error"]
+        assert resource_mgr._UPDATE["stage"] == "error"

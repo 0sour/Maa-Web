@@ -606,20 +606,23 @@ async def update() -> dict:
         if source == "mirrorchyan":
             remote = await remote_latest_mirrorchyan()
             if remote is None:
-                return {
-                    **dict(_UPDATE),
-                    "error": "Mirror酱引擎包查询失败（未配置 CDK / CDK 无效 / 网络不可达），"
-                             "请检查设置页更新源与 CDK 有效性",
-                }
+                # 写入 _UPDATE 供 /resources/status 轮询可见（否则前端误显示「已更新」）
+                _UPDATE.update(
+                    stage="error",
+                    error="Mirror酱引擎包查询失败（未配置 CDK / CDK 无效 / 网络不可达），"
+                          "请检查设置页更新源与 CDK 有效性",
+                )
+                return dict(_UPDATE)
             if remote.get("up_to_date"):
                 return {**dict(_UPDATE), "stage": "idle", "error": None}
         else:
             remote = await remote_latest()
             if remote is None:
-                return {
-                    **dict(_UPDATE),
-                    "error": "无法获取官方最新版本（网络不可达或资产缺失），请检查 MAAWEB_RESOURCE_MIRROR",
-                }
+                _UPDATE.update(
+                    stage="error",
+                    error="无法获取官方最新版本（网络不可达或资产缺失），请检查 MAAWEB_RESOURCE_MIRROR",
+                )
+                return dict(_UPDATE)
         _UPDATE.update(
             running=True,
             progress=0.0,
