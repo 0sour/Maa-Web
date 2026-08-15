@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>自动任务 · 设计稿 F（左账号右详情）</title>
+<title>自动任务 · 设计稿 F（左账号右详情 · 多时间点）</title>
 <style>
   :root{
     --bg:#1a1d22; --bg-panel:#23272e; --bg-subtle:#2c2e34; --bg-active:rgba(216,177,106,.12);
@@ -21,24 +21,34 @@
   .top b{font-size:18px;letter-spacing:2px}
   .top small{margin-left:auto;color:var(--text-3);font-size:11px}
 
-  .body{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+  .body{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
 
-  /* 左：调度 + 账号列表 */
   .panel{background:var(--bg-panel);border:1px solid var(--border);padding:16px}
   .ph{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .ph .diamond{width:10px;height:10px}
   .ph b{font-size:13px;letter-spacing:1px}
   .ph small{margin-left:auto;color:var(--text-3);font-size:10.5px}
-  .row{display:flex;align-items:center;gap:10px;padding:6px 0}
-  .row label{flex:1;font-size:12px;color:var(--text-2)}
-  .wds{display:flex;gap:4px}
-  .wd{width:24px;height:24px;line-height:24px;text-align:center;font-size:11px;border:1px solid var(--border);color:var(--text-3);cursor:pointer;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px)}
-  .wd.on{border-color:var(--gold-strong);color:var(--gold);background:var(--bg-active)}
-  .time{background:var(--bg-subtle);border:1px solid var(--border);color:var(--gold);font-family:var(--mono);font-size:13px;padding:6px 10px;letter-spacing:1px;outline:none;width:96px}
+  .ph .add{border:1px dashed var(--border-strong);background:none;color:var(--text-2);padding:3px 10px;font-size:11px;cursor:pointer}
+  .ph .add:hover{color:var(--gold);border-color:var(--gold-strong)}
+
+  /* 多时间点列表 */
+  .slots{display:flex;flex-direction:column;gap:8px}
+  .slot{border:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .slot:hover{border-color:var(--gold-strong)}
+  .slot.off{opacity:.55}
+  .slot-hd{display:flex;align-items:center;gap:8px}
   .sw{width:30px;height:14px;border:1px solid var(--border-strong);position:relative;cursor:pointer;clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);flex-shrink:0}
   .sw::after{content:"";position:absolute;top:1px;left:1px;width:10px;height:10px;background:var(--border-strong)}
   .sw.on{background:rgba(216,177,106,.25);border-color:var(--gold-strong)}
   .sw.on::after{left:17px;background:var(--gold)}
+  .slot-hd .nm{font-size:12.5px;color:var(--text-2);letter-spacing:.5px}
+  .slot-hd .x{cursor:pointer;color:var(--text-3);margin-left:auto}
+  .slot-hd .x:hover{color:var(--err)}
+  .slot-row{display:flex;align-items:center;gap:10px}
+  .wds{display:flex;gap:4px}
+  .wd{width:24px;height:24px;line-height:24px;text-align:center;font-size:11px;border:1px solid var(--border);color:var(--text-3);cursor:pointer;clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px)}
+  .wd.on{border-color:var(--gold-strong);color:var(--gold);background:var(--bg-active)}
+  .time{background:var(--bg-subtle);border:1px solid var(--border);color:var(--gold);font-family:var(--mono);font-size:13px;padding:6px 10px;letter-spacing:1px;outline:none;width:96px;margin-left:auto}
 
   .acc-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
   .acc{display:flex;align-items:center;gap:8px;border:1px solid var(--border);padding:9px 11px;cursor:pointer;font-size:12.5px}
@@ -49,10 +59,9 @@
   .acc small{color:var(--text-3);font-size:10px;font-family:var(--mono)}
   .acc .x{cursor:pointer;color:var(--text-3)}
   .acc .x:hover{color:var(--err)}
-  .add{border:1px dashed var(--border-strong);background:none;color:var(--text-2);padding:8px;font-size:12px;cursor:pointer;margin-top:6px}
+  .add{border:1px dashed var(--border-strong);background:none;color:var(--text-2);padding:8px;font-size:12px;cursor:pointer;margin-top:6px;width:100%}
   .add:hover{color:var(--gold);border-color:var(--gold-strong)}
 
-  /* 右：选中账号的方案配置 */
   .ph2{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .ph2 .diamond{width:10px;height:10px}
   .ph2 b{font-size:13.5px;letter-spacing:1px}
@@ -73,19 +82,39 @@
 </head>
 <body>
 <div class="page">
-  <div class="top"><span class="diamond"></span><b>自动任务 · 每日长草</b><small>左：账号清单 · 右：该账号的方案配置</small></div>
+  <div class="top"><span class="diamond"></span><b>自动任务 · 每日长草</b><small>多个执行时间 × 账号方案配置</small></div>
 
   <div class="body">
-    <!-- 左：调度 + 账号列表 -->
+    <!-- 左：多执行时间 + 账号列表 -->
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="panel">
-        <div class="ph"><span class="diamond"></span><b>调度</b><small>星期 × 时间</small></div>
-        <div class="row"><label>启用</label><span class="sw on"></span></div>
-        <div class="row"><label>星期</label><div class="wds"><span class="wd on">一</span><span class="wd on">二</span><span class="wd on">三</span><span class="wd on">四</span><span class="wd on">五</span><span class="wd on">六</span><span class="wd on">日</span></div></div>
-        <div class="row"><label>时间</label><input class="time" value="06:30"></div>
+        <div class="ph"><span class="diamond"></span><b>执行时间</b><small>可多个，各自星期</small><button class="add">＋ 添加时间</button></div>
+        <div class="slots">
+          <div class="slot">
+            <div class="slot-hd"><span class="sw on"></span><span class="nm">早间长草</span><span class="x">✕</span></div>
+            <div class="slot-row">
+              <div class="wds"><span class="wd on">一</span><span class="wd on">二</span><span class="wd on">三</span><span class="wd on">四</span><span class="wd on">五</span><span class="wd on">六</span><span class="wd on">日</span></div>
+              <input class="time" value="06:30">
+            </div>
+          </div>
+          <div class="slot">
+            <div class="slot-hd"><span class="sw on"></span><span class="nm">午间基建</span><span class="x">✕</span></div>
+            <div class="slot-row">
+              <div class="wds"><span class="wd on">一</span><span class="wd on">二</span><span class="wd on">三</span><span class="wd on">四</span><span class="wd on">五</span><span class="wd">六</span><span class="wd">日</span></div>
+              <input class="time" value="12:00">
+            </div>
+          </div>
+          <div class="slot off">
+            <div class="slot-hd"><span class="sw"></span><span class="nm">晚间活动</span><span class="x">✕</span></div>
+            <div class="slot-row">
+              <div class="wds"><span class="wd">一</span><span class="wd">二</span><span class="wd">三</span><span class="wd">四</span><span class="wd">五</span><span class="wd on">六</span><span class="wd on">日</span></div>
+              <input class="time" value="19:00">
+            </div>
+          </div>
+        </div>
       </div>
       <div class="panel">
-        <div class="ph"><span class="diamond"></span><b>账号</b><small>顺序 = 执行顺序</small></div>
+        <div class="ph"><span class="diamond"></span><b>账号</b><small>顺序 = 执行顺序 · 各时间点共用</small></div>
         <div class="acc-list">
           <div class="acc sel"><span class="idx">1</span><b>账号A（官服）</b><small>日常六件套 · 5 项</small><span class="x">✕</span></div>
           <div class="acc"><span class="idx">2</span><b>账号B（官服）</b><small>基建 · 2 项</small><span class="x">✕</span></div>
@@ -95,7 +124,7 @@
       </div>
     </div>
 
-    <!-- 右：选中账号配置 -->
+    <!-- 右：选中账号的方案配置 -->
     <div class="panel">
       <div class="ph2"><span class="diamond"></span><b>账号A（官服） · 方案配置</b><small>该账号独立的任务与参数</small></div>
       <div class="frow">
@@ -117,10 +146,10 @@
         <button class="btn">展开任务参数…</button>
       </div>
       <div class="execbar">
-        <span style="font-size:11px;color:var(--text-3)">执行：3 个账号 · 按序</span>
+        <span style="font-size:11px;color:var(--text-3)">3 个时间点 × 3 个账号 · 按序</span>
         <button class="linkstart">▶ LINK START</button>
       </div>
-      <p class="note">点击左侧账号切换配置；每个账号的方案独立快照。「参数微调」可在不修改原方案的前提下调整该账号的个别参数。</p>
+      <p class="note">每个时间点按账号顺序执行各自方案；多个时间点共用同一组账号配置。每个账号的方案独立快照，「参数微调」可不动原方案调整该账号的个别参数。</p>
     </div>
   </div>
 </div>
