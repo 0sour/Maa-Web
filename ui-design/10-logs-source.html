@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>作战日志 · 设计稿（按来源区分：普通 / 自动任务）</title>
+<title>作战日志 · 设计稿（来源选择框 + 每天两个日志条目）</title>
 <style>
   :root{
     --bg:#1a1d22; --bg-panel:#23272e; --bg-subtle:#2c2e34; --bg-active:rgba(216,177,106,.12);
@@ -21,89 +21,95 @@
   .top b{font-size:18px;letter-spacing:2px}
   .top small{margin-left:auto;color:var(--text-3);font-size:11px}
 
+  /* 与现有 /logs 页同构：双栏 + panel + panel-hd */
   .double{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
-  .panel{background:var(--bg-panel);border:1px solid var(--border)}
-  .ph{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
-  .ph .diamond{width:10px;height:10px}
-  .ph b{font-size:13px;letter-spacing:1px}
-  .ph small{margin-left:auto;color:var(--text-3);font-size:11px}
+  .panel{background:var(--bg-panel);border:1px solid var(--border);display:flex;flex-direction:column}
+  .panel-hd{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}
+  .panel-hd::before{content:"";width:14px;height:14px;border:1px solid var(--gold);transform:rotate(45deg);flex-shrink:0}
+  .panel-hd .t{font-size:15px;font-weight:700;letter-spacing:1px}
+  .panel-hd .sub{margin-left:auto;font-size:11px;color:var(--text-3)}
 
-  /* 来源选择框（实时区） */
-  .src-filter{display:flex;align-items:center;gap:8px;margin-right:10px}
-  .src-filter label{font-size:11px;color:var(--text-3);letter-spacing:.5px}
-  .src-sel{background:var(--bg-subtle);border:1px solid var(--border-strong);color:var(--gold);font-size:12px;padding:5px 10px;outline:none;font-family:var(--mono)}
+  /* 来源选择框 */
+  .src-filter{display:flex;align-items:center;gap:8px}
+  .src-filter label{font-size:10.5px;color:var(--text-3);letter-spacing:.5px}
+  .src-sel{background:var(--bg-subtle);border:1px solid var(--border-strong);color:var(--text);font-size:12px;padding:5px 10px;outline:none;font-family:var(--mono)}
 
-  /* 来源徽章 */
-  .badge{font-size:9.5px;border:1px solid var(--border);padding:0 6px;letter-spacing:.5px;flex-shrink:0}
+  .log{font-family:var(--mono);font-size:12px;padding:10px 18px;max-height:340px;overflow-y:auto;line-height:1.8;color:var(--text-2);background:var(--bg-subtle);flex:1;min-height:300px}
+  .log .t{color:var(--text-3);margin-right:8px}
+  .log .ok{color:var(--ok)} .log .warn{color:var(--warn)} .log .err{color:var(--err)} .log .info{color:var(--gold)}
+  .log .empty{color:var(--text-3);text-align:center;padding:60px 0;font-family:sans-serif;letter-spacing:.5px}
+
+  /* 历史：按天条目 = 日期 + [来源] */
+  .hist{padding:10px 12px;display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto}
+  .day{display:flex;align-items:center;gap:10px;border:1px solid var(--border);padding:9px 12px;cursor:pointer;background:var(--bg-subtle)}
+  .day:hover{border-color:var(--gold-strong)}
+  .day.open{border-color:var(--gold-strong);background:var(--bg-active)}
+  .day .mark{width:8px;height:8px;border:1px solid var(--border-strong);transform:rotate(45deg);flex-shrink:0;transition:all .15s}
+  .day.open .mark{border-color:var(--gold);background:rgba(216,177,106,.3)}
+  .day .date{font-family:var(--mono);font-size:12.5px;letter-spacing:.5px}
+  .badge{font-size:9.5px;border:1px solid var(--border-strong);padding:1px 7px;letter-spacing:1px;font-family:sans-serif}
   .badge.normal{color:var(--text-2)}
   .badge.auto{color:var(--gold);border-color:var(--gold-strong)}
   .badge.manual{color:var(--warn);border-color:var(--warn)}
-
-  .log{font-family:var(--mono);font-size:12px;padding:10px 16px;max-height:320px;overflow-y:auto;line-height:1.8;color:var(--text-2)}
-  .log .t{color:var(--text-3);margin-right:8px}
-  .log .ok{color:var(--ok)} .log .warn{color:var(--warn)} .log .err{color:var(--err)} .log .info{color:var(--gold)}
-
-  /* 历史：按天分组，天内按来源分块 */
-  .day{border:1px solid var(--border);margin-bottom:10px}
-  .day-hd{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px dashed var(--border)}
-  .day-hd .mark{width:8px;height:8px;border:1px solid var(--border-strong);transform:rotate(45deg)}
-  .day-hd .mark.open{border-color:var(--gold);background:rgba(216,177,106,.3)}
-  .day-hd .date{font-family:var(--mono);font-size:12px}
-  .day-hd .cnt{margin-left:auto;font-size:10.5px;color:var(--text-3);font-family:var(--mono)}
-  .day-body{padding:6px 12px}
-  .sub{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--text-3);letter-spacing:1px;padding:6px 2px 4px;border-bottom:1px dashed var(--border)}
-  .sub .badge{font-size:9px}
-  .sub .n{margin-left:auto;font-family:var(--mono);font-size:10px}
-  .day-body .line{font-family:var(--mono);font-size:11.5px;color:var(--text-2);padding:3px 2px;line-height:1.7}
-  .day-body .line .t{color:var(--text-3);margin-right:8px}
-  .day-body .line .ok{color:var(--ok)} .line .warn{color:var(--warn)} .line .err{color:var(--err)} .line .info{color:var(--gold)}
+  .day .cnt{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--text-3)}
+  .day-body{border:1px solid var(--border);border-top:none;padding:8px 12px;font-family:var(--mono);font-size:11.5px;line-height:1.8;color:var(--text-2)}
+  .day-body .t{color:var(--text-3);margin-right:8px}
+  .day-body .ok{color:var(--ok)} .day-body .warn{color:var(--warn)} .day-body .err{color:var(--err)} .day-body .info{color:var(--gold)}
   .hint{font-size:11px;color:var(--text-3);line-height:1.8}
 </style>
 </head>
 <body>
 <div class="page">
-  <div class="top"><span class="diamond"></span><b>作战日志 · 按来源区分</b><small>普通任务 / 自动任务（含手动运行）分开管理与展示</small></div>
+  <div class="top"><span class="diamond"></span><b>作战日志 · 按来源区分</b><small>历史区选择框切换：每天显示 [普通任务] 与 [自动任务] 两个日志</small></div>
 
   <div class="double">
-    <!-- 左：实时日志（带来源选择框） -->
+    <!-- 左：实时日志（原有框架 + 来源选择框） -->
     <div class="panel">
-      <div class="ph"><span class="diamond"></span><b>实时日志</b>
+      <div class="panel-hd">
+        <span class="t">实时日志</span>
         <div class="src-filter">
           <label>显示</label>
-          <select class="src-sel"><option>普通任务</option><option>自动任务</option><option>全部</option></select>
+          <select class="src-sel"><option>全部</option><option>普通任务</option><option>自动任务</option></select>
         </div>
+        <span class="sub">18 / 18 行（当天）</span>
       </div>
       <div class="log">
-        <div><span class="t">06:30:00</span><span class="badge normal">普通</span><span class="info">▶ 入队 开始唤醒（StartUp）</span></div>
-        <div><span class="t">06:30:02</span><span class="badge normal">普通</span><span class="info">▶ 任务链 StartUp 开始</span></div>
-        <div><span class="t">06:31:47</span><span class="badge normal">普通</span><span class="ok">✔ 任务链 StartUp 完成</span></div>
+        <div><span class="t">06:30:02</span><span class="info">▶ 任务链 StartUp 开始</span></div>
+        <div><span class="t">06:31:47</span><span class="ok">✔ 任务链 StartUp 完成</span></div>
+        <div><span class="t">06:35:20</span><span class="warn">▶ RUN TEST · 账号B 基建（手动运行）</span></div>
       </div>
     </div>
 
-    <!-- 右：历史（按天分组，天内按来源分块） -->
-    <div class="panel" style="padding:12px">
-      <div class="ph" style="padding:0 4px 10px;border-bottom:1px solid var(--border)"><span class="diamond"></span><b>历史日志</b><small>按天 · 来源分块</small></div>
-      <div style="padding-top:10px">
-        <div class="day">
-          <div class="day-hd"><span class="mark open"></span><span class="date">2026-08-16</span><span class="cnt">普通 18 · 自动 42</span></div>
-          <div class="day-body">
-            <div class="sub"><span class="badge normal">普通任务</span><span class="n">18 行</span></div>
-            <div class="line"><span class="t">06:31:47</span><span class="ok">✔ 任务链 StartUp 完成</span></div>
-            <div class="line"><span class="t">06:33:02</span><span class="info">▶ 入队 基建换班（Infrast）</span></div>
-            <div class="sub" style="margin-top:8px"><span class="badge auto">自动任务</span><span class="badge manual">手动运行 1</span><span class="n">42 行</span></div>
-            <div class="line"><span class="t">06:30:00</span><span class="info">⏰ 「每日长草·早间长草」已触发 · 账号A 开始（run 42）</span></div>
-            <div class="line"><span class="t">06:32:06</span><span class="info">⏭ 切换至账号B…</span></div>
-            <div class="line"><span class="t">06:35:20</span><span class="warn">▶ RUN TEST · 账号B 基建（手动运行）</span></div>
-          </div>
+    <!-- 右：历史日志（原有按天框架 + 来源选择框；每天 = [普通任务] + [自动任务] 两条） -->
+    <div class="panel">
+      <div class="panel-hd">
+        <span class="t">历史日志</span>
+        <span class="sub">按天分割 · 跨运行</span>
+        <div class="src-filter">
+          <label>显示</label>
+          <select class="src-sel"><option>全部</option><option>普通任务</option><option>自动任务</option></select>
         </div>
-        <div class="day">
-          <div class="day-hd"><span class="mark"></span><span class="date">2026-08-15</span><span class="cnt">普通 22 · 自动 0</span></div>
+        <span style="font-size:11px;color:var(--text-3)">过去 7 天 ▼ ⟳ 加载</span>
+      </div>
+      <div class="hist">
+        <div class="day open"><span class="mark"></span><span class="date">2026-08-16</span><span class="badge normal">普通任务</span><span class="cnt">18 行</span></div>
+        <div class="day-body">
+          <div><span class="t">06:31:47</span><span class="ok">✔ 任务链 StartUp 完成</span></div>
+          <div><span class="t">06:33:02</span><span class="info">▶ 入队 基建换班（Infrast）</span></div>
         </div>
+        <div class="day open"><span class="mark"></span><span class="date">2026-08-16</span><span class="badge auto">自动任务</span><span class="badge manual" style="margin-left:4px">手动 1</span><span class="cnt">42 行</span></div>
+        <div class="day-body">
+          <div><span class="t">06:30:00</span><span class="info">⏰ 「每日长草·早间长草」已触发 · 账号A 开始（run 42）</span></div>
+          <div><span class="t">06:32:06</span><span class="info">⏭ 切换至账号B…</span></div>
+          <div><span class="t">06:35:20</span><span class="warn">▶ RUN TEST · 账号B 基建（手动运行）</span></div>
+        </div>
+        <div class="day"><span class="mark"></span><span class="date">2026-08-15</span><span class="badge normal">普通任务</span><span class="cnt">22 行</span></div>
+        <div class="day"><span class="mark"></span><span class="date">2026-08-14</span><span class="badge auto">自动任务</span><span class="cnt">36 行</span></div>
       </div>
     </div>
   </div>
 
-  <p class="hint">实现要点：① 实时区「显示」选择框过滤当天实时流（普通任务 / 自动任务 / 全部）；② 历史按天分组，天内按来源分块（自动任务块内手动运行行带橙色「手动运行」徽章）；③ 首页/任务编排的实时日志只显示普通任务；自动任务页的日志只显示自动任务（含手动运行）。</p>
+  <p class="hint">选择框「全部 / 普通任务 / 自动任务」：选「普通任务」只列 [普通任务] 条目，选「自动任务」只列 [自动任务] 条目，选「全部」两者都列。自动任务条目内含手动运行行（带橙色「手动」徽章计数）。实时区同样有选择框过滤当天实时流。</p>
 </div>
 </body>
 </html>
