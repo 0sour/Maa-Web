@@ -301,7 +301,15 @@ onMounted(load)
 
 <style scoped>
 .proxy-row { display: flex; align-items: center; gap: 8px; }
-.proxy-row input { flex: 1; }
+.proxy-row input {
+  flex: 1;
+  background: var(--color-bg-subtle); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  padding: 9px 12px; font-size: var(--font-size-md); outline: none;
+  font-family: inherit; border-radius: 0;
+}
+.proxy-row input::placeholder { color: var(--color-text-tertiary); }
+.proxy-row input:focus { border-color: var(--color-brand-strong); }
 .proxy-result { font-size: var(--font-size-sm); margin: 0; }
 .proxy-result.ok { color: var(--color-success); }
 .proxy-result.bad { color: var(--color-danger); }
