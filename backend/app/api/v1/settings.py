@@ -91,6 +91,7 @@ async def read_mirror_settings() -> MirrorSourceSettings:
         mirrorchyan_cdk_remaining_days=remaining,
         mirrorchyan_cdk_message=message,
         http_proxy=runtime_settings.http_proxy(),
+        dynamic_source=runtime_settings.dynamic_source(),
     )
 
 
@@ -117,6 +118,14 @@ async def update_mirror_settings(payload: MirrorSourceUpdate) -> MirrorSourceSet
             kw["mirrorchyan_cdk_expired_time"] = 0
     if payload.http_proxy is not None:
         kw["http_proxy"] = payload.http_proxy.strip()
+    if payload.dynamic_source is not None:
+        ds = payload.dynamic_source.strip()
+        if ds not in ("", "github", "mirrorchyan"):
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="dynamic_source 仅支持 github / mirrorchyan（空 = 跟随引擎包源）",
+            )
+        kw["dynamic_source"] = ds
     if kw:
         runtime_settings.update(**kw)
     return await read_mirror_settings()

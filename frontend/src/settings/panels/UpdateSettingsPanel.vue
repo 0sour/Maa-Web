@@ -19,6 +19,7 @@ const mirror = reactive({
   mirror_prefixes: '',
   mirrorchyan_cdk: '',
   http_proxy: '',
+  dynamic_source: '',
 })
 const cdkMasked = ref('')
 const cdkConfigured = ref(false)
@@ -143,6 +144,7 @@ async function load() {
     mirror.mirror_prefixes = s.mirror_prefixes
     mirror.mirrorchyan_cdk = s.mirrorchyan_cdk
     mirror.http_proxy = s.http_proxy
+    mirror.dynamic_source = s.dynamic_source ?? ''
     cdkMasked.value = s.mirrorchyan_cdk_masked
     cdkConfigured.value = s.mirrorchyan_cdk_configured
     cdkMessage.value = s.mirrorchyan_cdk_message
@@ -164,6 +166,7 @@ async function save() {
       update_source: mirror.update_source,
       mirror_prefixes: mirror.mirror_prefixes,
       http_proxy: mirror.http_proxy,
+      dynamic_source: mirror.dynamic_source,
       ...(mirror.mirrorchyan_cdk !== '' ? { mirrorchyan_cdk: mirror.mirrorchyan_cdk } : {}),
     })
     mirror.mirrorchyan_cdk = s.mirrorchyan_cdk
@@ -218,6 +221,38 @@ onMounted(load)
         >
           <b>Mirror酱（MirrorChyan）</b>
           <span>MAA 高速更新源 · 需 CDK · Linux 部署请用 GitHub 源</span>
+        </button>
+      </div>
+    </div>
+    <div class="f-row f-col">
+      <label class="f-label">动态资源源<small>活动地图/模板等增量数据；可独立于引擎包源（如 NAS：引擎包 GitHub + 动态资源 Mirror）</small></label>
+      <div class="src-options">
+        <button
+          type="button"
+          class="src-opt"
+          :class="{ active: mirror.dynamic_source === '' }"
+          @click="mirror.dynamic_source = ''"
+        >
+          <b>跟随引擎包源</b>
+          <span>与上方「更新源」一致</span>
+        </button>
+        <button
+          type="button"
+          class="src-opt"
+          :class="{ active: mirror.dynamic_source === 'github' }"
+          @click="mirror.dynamic_source = 'github'"
+        >
+          <b>GitHub（MaaResource）</b>
+          <span>直连 / 镜像加速</span>
+        </button>
+        <button
+          type="button"
+          class="src-opt"
+          :class="{ active: mirror.dynamic_source === 'mirrorchyan' }"
+          @click="mirror.dynamic_source = 'mirrorchyan'"
+        >
+          <b>Mirror酱（MaaResource）</b>
+          <span>国内节点 · 需 CDK · 更稳定</span>
         </button>
       </div>
     </div>

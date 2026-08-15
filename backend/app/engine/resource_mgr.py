@@ -1226,7 +1226,8 @@ async def _sync_worker(commit: str, files: dict[str, str], manifest: dict) -> No
 async def sync_dynamic() -> dict:
     """触发动态资源同步（幂等：已有任务进行中则直接返回当前状态）。
 
-    按更新源分发（对齐 MAA 客户端 UpdateSource）：
+    按动态资源源分发（dynamic_source 可独立于引擎包 update_source 配置，
+    如 NAS：引擎包 GitHub + 动态资源 Mirror 互不干扰）：
         github      → MaaResource 仓库增量 diff（现有流程）
         mirrorchyan → Mirror酱高速更新源（CDK 增量包）
     """
@@ -1234,7 +1235,7 @@ async def sync_dynamic() -> dict:
         if _DYNAMIC["running"]:
             return dict(_DYNAMIC)
 
-        source = runtime_settings.update_source()
+        source = runtime_settings.dynamic_source()
         if source == "mirrorchyan":
             return await _sync_dynamic_mirrorchyan()
         return await _sync_dynamic_github()

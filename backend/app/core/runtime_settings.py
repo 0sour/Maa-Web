@@ -23,6 +23,9 @@ from app.core.config import get_settings
 # ── 字段默认值 ────────────────────────────────────────────
 _DEFAULTS: dict = {
     "update_source": "github",  # 资源更新源：github（直连/镜像）| mirrorchyan（Mirror酱）
+    # 动态资源（MaaResource）独立源：空 = 跟随 update_source；显式 github/mirrorchyan 可解耦
+    #（NAS 场景：引擎包走 GitHub，动态资源走 Mirror 更快——互不干扰）
+    "dynamic_source": "",
     "maa_resource_mirror": "",  # ghproxy 类镜像前缀（逗号/换行分隔）；空 = 官方直连
     "mirrorchyan_cdk": "",  # Mirror酱 CDK（对齐 MAA 客户端下载源）
     "mirrorchyan_cdk_expired_time": 0,  # unix 秒；0 = 未检查过
@@ -105,6 +108,11 @@ def http_proxy() -> str:
 def update_source() -> str:
     """当前资源更新源：github | mirrorchyan（默认 github）。"""
     return str(load().get("update_source", "") or "github")
+
+
+def dynamic_source() -> str:
+    """动态资源（MaaResource）更新源：显式配置则独立生效，否则跟随 update_source。"""
+    return str(load().get("dynamic_source", "") or "").strip() or update_source()
 
 
 def adb_path() -> str:

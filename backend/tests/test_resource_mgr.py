@@ -1245,3 +1245,29 @@ class TestHttpProxy:
         monkeypatch.setattr(resource_mgr.httpx, "AsyncClient", _C)
         await resource_mgr.check_mirrorchyan_cdk("A" * 24)
         assert captured.get("proxy") is None
+
+
+class TestDynamicSourceDecoupled:
+    """动态资源源（dynamic_source）可独立于引擎包源（update_source）。"""
+
+    async def test_dynamic_source_mirror_overrides_github_engine(self, monkeypatch, res_env):
+        """引擎包源 = github，但动态资源源显式 = mirrorchyan → 动态同步走 Mirror。"""
+        monkeypatch.setattr(runtime_settings, "update_source", lambda: "github")
+        monkeypatch.setattr(runtime_settings, "dynamic_source", lambda: "mirrorchyan")
+        monkeypatch.setattr(runtime_settings, "mirrorchyan_cdk", lambda: "")
+        result = await resource_mgr.sync_dynamic()
+        # 走到 mirrorchyan 分支：CDK 缺失报错（而非 GitHub 分支的错误文案）
+        assert result["running"] is False
+        assert "CDK" in result["error"]
+
+    async def test_dynamic_source_empty_follows_engine(self, monkeypatch, res_env):
+        """dynamic_source 空 → 跟随 update_source（github → GitHub 分支）。"""
+        monkeypatch.setattr(runtime_settings, "update_source", lambda: "github")
+        monkeypatch.setattr(runtime_settings, "dynamic_source", lambda: "github")
+
+        async def _fake_tree():
+            return None
+
+        monkeypatch.setattr(resource_mgr, "_fetch_dynamic_tree", _fake_tree)
+        result = await resource_mgr.sync_dynamic()
+        assert "MaaResource 仓库不可达" in result["error"]  # GitHub 分支文案

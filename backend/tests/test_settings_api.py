@@ -352,3 +352,25 @@ async def test_proxy_test_failure(client, monkeypatch) -> None:
     body = resp.json()
     assert body["ok"] is False
     assert "connection refused" in body["error"]
+
+
+async def test_mirror_dynamic_source_roundtrip(client) -> None:
+    """PUT /settings/mirror 保存 dynamic_source → GET 回显；非法值 422。"""
+    resp = await client.put(
+        "/api/v1/settings/mirror",
+        json={"update_source": "github", "dynamic_source": "mirrorchyan"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["dynamic_source"] == "mirrorchyan"
+    resp = await client.get("/api/v1/settings/mirror")
+    assert resp.json()["dynamic_source"] == "mirrorchyan"
+
+    resp = await client.put(
+        "/api/v1/settings/mirror", json={"dynamic_source": "bogus"}
+    )
+    assert resp.status_code == 422
+
+    # 空 = 跟随引擎包源
+    resp = await client.put("/api/v1/settings/mirror", json={"dynamic_source": ""})
+    assert resp.status_code == 200
+    assert resp.json()["dynamic_source"] == "github"  # 回退 update_source

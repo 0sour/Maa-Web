@@ -34,6 +34,8 @@ class MirrorSourceSettings(BaseModel):
     mirrorchyan_cdk_message: str = ""
     # HTTP 代理（clash 等场景，如 http://192.168.10.110:7890）；空 = 直连
     http_proxy: str = ""
+    # 动态资源（MaaResource）独立源：空 = 跟随 update_source；github | mirrorchyan 显式解耦
+    dynamic_source: str = ""
 
 
 class MirrorSourceUpdate(BaseModel):
@@ -47,6 +49,8 @@ class MirrorSourceUpdate(BaseModel):
     mirrorchyan_cdk: str | None = None
     # HTTP 代理。None = 不修改；"" = 清除（恢复直连）。
     http_proxy: str | None = None
+    # 动态资源源："" = 跟随引擎包源；github | mirrorchyan 显式指定。None = 不修改。
+    dynamic_source: str | None = None
 
 
 class MirrorCdkCheckPayload(BaseModel):
