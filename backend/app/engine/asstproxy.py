@@ -314,6 +314,10 @@ class AsstSession:
             self._emit("warn", f"[子任务] {d.get('subtask', '')} 识别/执行错误")
         elif msg == 20003:
             self._extra_info(d)
+            # 透传子任务额外信息（识别结果等）给 on_event 订阅方（工具箱识别会话用；
+            # TaskRunner 忽略未知 event 类型）
+            if on_event:
+                on_event({"event": "extra_info", "payload": d})
         elif msg == 20004:
             self._emit("warn", f"[子任务] {d.get('subtask', '')} 已停止")
         # 其余（AsyncCallInfo/Destroyed/ReportRequest/SubTaskStart 等）静默

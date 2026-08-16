@@ -366,10 +366,13 @@ Setting       (S-06/09) key, value  (通知通道 / GPU 加速 / 上传 ID 等)
 | ~~POST~~ | ~~`/api/v1/configs`~~ | ~~配置管理（S-04）~~（已裁掉） |
 | ~~POST~~ | ~~`/api/v1/remote/get-task`~~ | ~~远程控制·GET 任务（S-10）~~（已裁掉） |
 | ~~POST~~ | ~~`/api/v1/remote/report-status`~~ | ~~远程控制·上报状态（S-10）~~（已裁掉） |
-| POST | `/api/v1/toolbox/recruit` | 公招识别（T-01，规划 M5） |
-| POST | `/api/v1/toolbox/depot` | 仓库识别（T-03，规划 M5） |
-| POST | `/api/v1/toolbox/operbox` | 干员识别（T-02，规划 M5） |
-| POST | `/api/v1/toolbox/gacha` | 抽卡（T-05，规划 M5） |
+| POST | `/api/v1/toolbox/recognize` | 启动识别任务（recruit/depot/operbox，异步返回 task_id；识别完成自动保存历史记录） |
+| GET | `/api/v1/toolbox/tasks/{task_id}` | 识别任务状态（running/done/error + 结果，前端轮询） |
+| GET | `/api/v1/toolbox/records` | 历史识别记录列表（按工具/设备过滤，时间倒序） |
+| GET | `/api/v1/toolbox/records/{id}` | 单条识别记录详情（历史结果调用展示） |
+| DELETE | `/api/v1/toolbox/records/{id}` | 删除识别记录 |
+| POST | `/api/v1/toolbox/recruit/execute` | 按识别结果执行真实公招（联动，select/confirm=目标星级，消耗招募许可） |
+| ~~POST~~ | ~~`/api/v1/toolbox/gacha`~~ | ~~抽卡（T-05，规划中）~~ |
 | WS | `/ws/logs` | 日志流 |
 | WS | `/ws/screen` | 画面流 |
 | GET | `/healthz/startup` `/ready` `/live` | 容器探针 |

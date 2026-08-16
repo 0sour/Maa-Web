@@ -81,6 +81,9 @@ async def on_startup(settings: Settings) -> str:
         from app.models import (
             task as _task_models,  # noqa: F401  (registers TaskRun/LogEntry)
         )
+        from app.models import (
+            toolbox as _toolbox_models,  # noqa: F401  (registers ToolboxRecord)
+        )
         from app.models.device import Base  # noqa: F401  (registers Device)
 
         async with get_engine().begin() as conn:

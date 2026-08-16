@@ -478,7 +478,9 @@ class TestToAsstTask:
         session = AsstSession(device_id=1, ptr=1, lib=None, cb_ref=None)
         session.set_handler(lambda _level, _msg: None, on_event)
         session._dispatch(20003, b'{"what": "OfflineConfirm", "details": {}}')
-        assert events == [{"event": "offline_confirm"}]
+        # 20003 同时透传 extra_info（工具箱识别用）；offline_confirm 事件保持
+        assert any(ev["event"] == "offline_confirm" for ev in events)
+        assert any(ev["event"] == "extra_info" for ev in events)
 
     def test_fight_times_unlimited_stripped(self):
         """战斗次数 -1/0 = 不限（对齐 MAA 默认 int.MaxValue）：不下发，引擎默认 INT_MAX。"""

@@ -25,6 +25,7 @@ from app.api.v1.schedules import router as schedules_router
 from app.api.v1.settings import router as settings_router
 from app.api.v1.task_schemes import router as task_schemes_router
 from app.api.v1.tasks import router as tasks_router
+from app.api.v1.toolbox import router as toolbox_router
 from app.core.config import get_settings
 from app.core.events import on_shutdown, on_startup
 
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(auto_tasks_router, prefix="/api/v1")
     app.include_router(task_schemes_router, prefix="/api/v1")
     app.include_router(config_backup_router, prefix="/api/v1")
+    app.include_router(toolbox_router, prefix="/api/v1")
     app.include_router(notifications_router, prefix="/api/v1")
 
     # Root API info

@@ -35,8 +35,8 @@ const router = createRouter({
     {
       path: '/toolbox',
       name: 'toolbox',
-      component: () => import('@/views/PlaceholderView.vue'),
-      meta: { title: '工具箱 · Maa-Web', ph: 'M5 交付：公招/干员/仓库识别 + 抽卡 + 窥屏 + 小游戏' },
+      component: () => import('@/views/ToolboxView.vue'),
+      meta: { title: '工具箱 · Maa-Web' },
     },
     {
       path: '/logs',

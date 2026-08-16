@@ -166,10 +166,11 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | `backend/tests/test_auto_tasks_api.py` | M6+ 自动任务 API：嵌套 CRUD 全流程 + 级联删除 + 校验（空星期/坏时间/设备 404）+ run-test（提交 manual_auto / 设备忙 409 / 离线 409 / 无启用账号 422 / 槽不属于任务 404）+ 未命名组/槽创建（组名与槽名允许空、立即落库） | ✅ 已落地（10 用例） |
 | `backend/tests/test_config_backup.py` | 全量配置导出/导入：zip 内容（设备/设置/方案/自动任务/草稿/runtime_settings）+ 覆盖恢复一致性（导出→清空→导入→断言）+ 自动备份文件 + 非法输入 422 | ✅ 已落地（3 用例） |
 | `backend/tests/test_task_schemes_api.py` | 任务方案后端化：CRUD 全流程 + 同名覆盖 upsert + 校验（空名 422/404/改名冲突 409）+ 队列草稿读写（daily/tasks、非法键 422） | ✅ 已落地（4 用例） |
+| `backend/tests/test_toolbox_api.py` | M5 工具箱第一批：识别触发（离线 409/忙碌 409/非法工具 422）+ 任务状态轮询 + 历史记录 CRUD（保存/过滤/详情调用/删除）+ 招募联动 execute（select/confirm 参数）+ 结果解析纯函数（公招 result/tags、仓库 data、干员 own_opers、摘要） | ✅ 已落地（10 用例） |
 | `backend/tests/test_notify.py` | M6 外部通知：渠道消息构造（Server酱 URL/钉钉加签/自定义模板与默认 JSON）+ 发送主流程（无配置空返回/事件开关/多渠道+禁用过滤/HTTP 错误与异常落库）+ API（测试发送/记录/重发 404） | ✅ 已落地（11 用例） |
 | `frontend/scripts/verify-ui.mjs` | R4/R6/R7/R11：L3 浏览器自动化回归（首页/设备 CRUD+连接终态/检测面板/占位页/控制台错误） | ✅ 已落地（27 断言） |
 
-> 全量 pytest 实测：**322 passed**（2026-08-16，含 detect 引擎字段 / schema 迁移回归 / offline 过滤 / 任务方案与队列草稿后端化 / 自动任务组立即落库 / 配置导出导入 / 空槽名允许）。用例数含参数化展开；新增模块已登记本表。
+> 全量 pytest 实测：**330 passed**（2026-08-16，含 detect 引擎字段 / schema 迁移回归 / offline 过滤 / 任务方案与队列草稿后端化 / 自动任务组立即落库 / 配置导出导入 / 空槽名允许）。用例数含参数化展开；新增模块已登记本表。
 
 ---
 
