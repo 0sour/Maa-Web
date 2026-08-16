@@ -94,6 +94,7 @@ docker compose up -d            # 应用升级
 | `adb` 连接 `unauthorized` | 设备弹窗授权；真机需在「开发者选项」里撤销授权后重连 |
 | 任务时间/日志日期差 8 小时 | 容器时区未设：`.env` 配 `TZ=Asia/Shanghai` 后重建容器 |
 | 端口 8080 被占用 | `.env` 改 `MAAWEB_EXPOSE_PORT` |
+| 日志页反复「⚠ 日志流连接异常，尝试重连…」 | 前端 WS 走 `/api/v1/tasks/ws/logs`（`/api/` location）——早期 nginx `/api/` 未转发 Upgrade 头导致握手失败；新镜像已补 `proxy_set_header Upgrade/Connection`（`$connection_upgrade` map 在 http 层），重建 nginx 容器 |
 | 连不上 NAS 上模拟器 | 模拟器网络模式需「桥接/NAT 可达」；确认防火墙放行 adb 端口 |
 | 更新源走 GitHub 慢 | 「设置 → 更新设置」配置 ghproxy 镜像前缀或 MirrorChyan CDK |
 
