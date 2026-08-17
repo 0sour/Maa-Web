@@ -196,10 +196,12 @@ def test_parse_depot_data() -> None:
 
 def test_parse_operbox() -> None:
     acc: dict = {}
+    # battle_data rarity = 星级数（1-6）：德克萨斯 5★=5、芬 3★=3、陈 6★=6
     toolbox._parse_operbox("", {"own_opers": [
         {"id": "char_102_texas", "rarity": 5, "elite": 2, "level": 60, "potential": 1},
-        {"id": "char_123_fang", "rarity": 1, "elite": 0, "level": 30, "potential": 6},
+        {"id": "char_123_fang", "rarity": 3, "elite": 0, "level": 30, "potential": 6},
+        {"id": "char_010_chen", "rarity": 6, "elite": 2, "level": 90, "potential": 1},
     ]}, acc)
-    assert len(acc["opers"]) == 2
+    assert len(acc["opers"]) == 3
     assert acc["opers"][0]["rarity"] == 5
-    assert toolbox.summary_of("operbox", acc) == "干员 2 名 · 六星 1"
+    assert toolbox.summary_of("operbox", acc) == "干员 3 名 · 六星 1"

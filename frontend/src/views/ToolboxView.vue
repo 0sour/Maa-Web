@@ -198,8 +198,8 @@ function operName(id: string): string {
 }
 
 function rarityStars(rarity: number): string {
-  // battle_data rarity: 0-5 → ★1-★6
-  return '★'.repeat(Math.min(6, Math.max(1, rarity + 1)))
+  // battle_data rarity = 星级数（1-6），直接标星（与客户端 OperBox 一致）
+  return '★'.repeat(Math.min(6, Math.max(1, rarity)))
 }
 
 function fmtTime(iso: string): string {
@@ -372,7 +372,7 @@ onBeforeUnmount(() => {
               <template v-else>
                 <div v-if="taskResult?.opers?.length" class="oper-list">
                   <div v-for="o in taskResult.opers" :key="o.id" class="oper-row">
-                    <span class="rare" :class="`r${Math.min(6, o.rarity + 1)}`">{{ rarityStars(o.rarity) }}</span>
+                    <span class="rare" :class="`r${Math.min(6, o.rarity)}`">{{ rarityStars(o.rarity) }}</span>
                     <span class="nm">{{ operName(o.id) }}</span>
                     <span class="lvl">精{{ o.elite }} Lv.{{ o.level }} · 潜{{ o.potential }}</span>
                   </div>

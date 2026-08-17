@@ -148,7 +148,10 @@ def _parse_depot(what: str, payload: dict, acc: dict) -> None:
 
 
 def _parse_operbox(what: str, payload: dict, acc: dict) -> None:
-    """干员识别：own_opers = [{id, rarity, elite, level, potential}]。"""
+    """干员识别：own_opers = [{id, rarity, elite, level, potential}]。
+
+    rarity 为 battle_data 星级数（1-6），不是 0 基索引；引擎透传原值。
+    """
     opers = payload.get("own_opers") or []
     if isinstance(opers, list):
         acc["opers"] = [
@@ -311,6 +314,7 @@ def summary_of(tool: str, result: dict) -> str:
         return f"材料 {len(items)} 种"
     if tool == "operbox":
         opers = result.get("opers") or []
-        r6 = sum(1 for o in opers if o["rarity"] >= 5)
+        # battle_data rarity = 星级数（1-6；阿米娅特例 5），六星 = rarity >= 6
+        r6 = sum(1 for o in opers if o["rarity"] >= 6)
         return f"干员 {len(opers)} 名 · 六星 {r6}"
     return ""
