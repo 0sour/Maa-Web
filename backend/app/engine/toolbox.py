@@ -4,8 +4,11 @@
 AsstMsg 20003（SubTaskExtraInfo，经 asstproxy 透传为 extra_info 事件）
 收集识别结果，任务链完成后解析为结构化 JSON。
 
-任务类型与参数（对齐 MAA 客户端工具箱 ToolboxViewModel）：
-    recruit  → "RecruitCalc"（只识别不招募；select=[] confirm=[-1]）
+任务类型与参数（对齐 MAA 客户端工具箱 ToolboxViewModel / AsstRecruitTask）：
+    recruit  → "Recruit"（注意：引擎无 RecruitCalc 任务——客户端工具箱
+               枚举 RecruitCalc 仅 UI 层标记，实际 append 的是 AsstRecruitTask
+               序列化的 "Recruit"；confirm=[-1] 触发 calc-only 纯识别模式，
+               times=0 不执行招募）
     depot    → "Depot"
     operbox  → "OperBox"
 
@@ -28,16 +31,32 @@ from app.models.device import Device
 
 log = logging.getLogger(__name__)
 
-# 识别任务类型映射（MAA AsstAppendTask type）
+# 识别任务类型映射（引擎 AsstAppendTask type，白名单见 MaaCore Assistant.cpp）
 _TOOL_TASKS: dict[str, str] = {
-    "recruit": "RecruitCalc",
+    "recruit": "Recruit",
     "depot": "Depot",
     "operbox": "OperBox",
 }
 
-# 识别默认参数（对齐 MAA 客户端工具箱）
+# 识别默认参数（对齐 MAA 客户端 AsstRecruitTask.Serialize()；
+# confirm=[-1] = calc-only 纯识别，不消耗招募许可）
 _TOOL_PARAMS: dict[str, dict] = {
-    "recruit": {"select": [], "confirm": [-1], "set_time": True},
+    "recruit": {
+        "refresh": False,
+        "force_refresh": False,
+        "select": [],
+        "confirm": [-1],
+        "times": 0,
+        "set_time": True,
+        "expedite": False,
+        "preserve_tags": [],
+        "extra_tags_mode": 0,
+        "first_tags": [],
+        "recruitment_time": {"3": 60, "4": 60, "5": 540, "6": 540},
+        "report_to_penguin": False,
+        "report_to_yituliu": False,
+        "server": "CN",
+    },
     "depot": {},
     "operbox": {},
 }

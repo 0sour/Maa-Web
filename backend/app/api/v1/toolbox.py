@@ -188,7 +188,8 @@ async def execute_recruit(
             name=f"公招执行（{payload.level}★）",
             entry="Recruit",
             type="公招",
-            params={"select": [payload.level], "confirm": [payload.level], "set_time": True},
+            # times=1 必须显式（引擎默认 0 时 while 循环不执行，不会招募）
+            params={"select": [payload.level], "confirm": [payload.level], "set_time": True, "times": 1},
         )
     ]
     try:
