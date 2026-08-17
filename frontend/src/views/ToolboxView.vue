@@ -101,14 +101,32 @@ async function pollTask(taskId: string) {
   taskError.value = '识别超时，请重试'
 }
 
-// ── 历史记录 ─────────────────────────────────────────
+// ── 历史记录（不分设备展示；可筛选指定设备） ──────────
 const records = ref<ToolboxRecord[]>([])
 const recordsErr = ref('')
+const filterDev = ref<number | null>(null)
+
+const devFilterOptions = computed<DropOption[]>(() => [
+  { value: '', label: '全部设备' },
+  ...devices.list.map((d) => ({
+    value: String(d.id),
+    label: `${d.name}（${d.status === 'online' ? '在线' : d.status}）`,
+  })),
+])
+const devFilterModel = computed({
+  get: () => (filterDev.value == null ? '' : String(filterDev.value)),
+  set: (v: string) => {
+    filterDev.value = v === '' ? null : Number(v)
+  },
+})
+
+function devName(id: number): string {
+  return devices.list.find((d) => d.id === id)?.name ?? `设备#${id}`
+}
 
 async function loadRecords() {
-  if (!targetId.value) return
   try {
-    const r = await toolboxApi.records(activeTool.value, targetId.value)
+    const r = await toolboxApi.records(activeTool.value, filterDev.value ?? undefined)
     records.value = r.records
   } catch (e: unknown) {
     recordsErr.value = (e as { message?: string })?.message ?? '读取历史记录失败'
@@ -205,17 +223,17 @@ onMounted(async () => {
   itemNames.value = Object.fromEntries(items.map((i) => [i.id, i.name]))
   operNames.value = Object.fromEntries(opers.map((o) => [o.id, o.name]))
   watchDeviceAuto()
+  void loadRecords()
 })
 
 function watchDeviceAuto() {
-  // 设备列表就绪后默认选在线设备，并加载历史
+  // 设备列表就绪后默认选在线设备（用于识别操作）
   const stop = watch(
     () => devices.list,
     (list) => {
       if (targetId.value == null) {
         const online = list.find((d) => d.status === 'online')
         targetId.value = online?.id ?? list[0]?.id ?? null
-        if (targetId.value != null) void loadRecords()
       } else {
         stop()
       }
@@ -229,6 +247,12 @@ watch(activeTool, () => {
   viewRecord.value = null
   taskError.value = ''
   tip.value = ''
+  void loadRecords()
+})
+
+watch(filterDev, () => {
+  viewRecord.value = null
+  taskResult.value = null
   void loadRecords()
 })
 
@@ -364,6 +388,7 @@ onBeforeUnmount(() => {
             <div class="ph2">
               <span class="diamond"></span><b>历史识别记录</b>
               <small>保存每次识别结果 · 点击查看详情</small>
+              <DropSelect v-model="devFilterModel" :options="devFilterOptions" class="dev-filter" />
             </div>
             <div v-if="recordsErr" class="hist-err">⚠ {{ recordsErr }}</div>
             <div v-if="records.length === 0" class="hist-empty">暂无历史记录——识别一次后自动保存</div>
@@ -376,6 +401,7 @@ onBeforeUnmount(() => {
                 @click="viewHistory(rec)"
               >
                 <span class="time">{{ fmtTime(rec.created_at) }}</span>
+                <span class="dev">{{ devName(rec.device_id) }}</span>
                 <span class="sum">{{ rec.summary }}</span>
                 <span class="h-ops">
                   <button class="mini" @click.stop="removeRecord(rec)">删除</button>
@@ -527,6 +553,12 @@ onBeforeUnmount(() => {
 .h-item:hover { border-color: var(--color-brand-strong); }
 .h-item.sel { border-color: var(--color-brand-strong); background: var(--color-bg-active); }
 .h-item .time { font-family: var(--font-family-mono); font-size: var(--font-size-2xs); color: var(--color-text-tertiary); flex-shrink: 0; }
+.h-item .dev {
+  flex-shrink: 0;
+  font-size: var(--font-size-2xs); color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-default); padding: 0 6px;
+  letter-spacing: 0.5px; white-space: nowrap;
+}
 .h-item .sum { flex: 1; font-size: var(--font-size-xs); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .h-item .h-ops { flex-shrink: 0; }
 .note { font-size: var(--font-size-2xs); color: var(--color-text-tertiary); margin-top: 10px; line-height: 1.7; }
