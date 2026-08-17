@@ -202,6 +202,29 @@ function rarityStars(rarity: number): string {
   return '★'.repeat(Math.min(6, Math.max(1, rarity)))
 }
 
+// ── 干员结果排序与星级筛选 ───────────────────────────
+const filterRarity = ref<number | null>(null)
+const rarityFilterOptions = computed<DropOption[]>(() => [
+  { value: '', label: '全部星级' },
+  ...[6, 5, 4, 3, 2, 1].map((r) => ({ value: String(r), label: '★'.repeat(r) })),
+])
+const rarityFilterModel = computed({
+  get: () => (filterRarity.value == null ? '' : String(filterRarity.value)),
+  set: (v: string) => {
+    filterRarity.value = v === '' ? null : Number(v)
+  },
+})
+
+/** 干员展示列表：默认高星→低星，同星按名称排序（中文拼音 / 英文首字母） */
+const shownOpers = computed(() => {
+  const list = taskResult.value?.opers ?? []
+  const filtered = filterRarity.value == null ? list : list.filter((o) => o.rarity === filterRarity.value)
+  return [...filtered].sort((a, b) => {
+    if (a.rarity !== b.rarity) return b.rarity - a.rarity
+    return operName(a.id).localeCompare(operName(b.id), 'zh-Hans-CN')
+  })
+})
+
 function fmtTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
@@ -328,6 +351,12 @@ onBeforeUnmount(() => {
               <span class="diamond"></span>
               <b>{{ TOOLS.find((t) => t.key === activeTool)?.label }}</b>
               <small>{{ TOOLS.find((t) => t.key === activeTool)?.desc }}</small>
+              <DropSelect
+                v-if="activeTool === 'operbox'"
+                v-model="rarityFilterModel"
+                :options="rarityFilterOptions"
+                class="rare-filter"
+              />
             </div>
             <div class="op-row">
               <span class="t">
@@ -370,13 +399,14 @@ onBeforeUnmount(() => {
 
               <!-- 干员结果 -->
               <template v-else>
-                <div v-if="taskResult?.opers?.length" class="oper-list">
-                  <div v-for="o in taskResult.opers" :key="o.id" class="oper-row">
+                <div v-if="shownOpers.length" class="oper-list">
+                  <div v-for="o in shownOpers" :key="o.id" class="oper-row">
                     <span class="rare" :class="`r${Math.min(6, o.rarity)}`">{{ rarityStars(o.rarity) }}</span>
                     <span class="nm">{{ operName(o.id) }}</span>
                     <span class="lvl">精{{ o.elite }} Lv.{{ o.level }} · 潜{{ o.potential }}</span>
                   </div>
                 </div>
+                <div v-else-if="taskResult?.opers?.length" class="empty">当前星级筛选下没有干员</div>
                 <div v-else class="empty">未识别到干员数据——请确认设备画面在干员界面</div>
               </template>
             </template>
