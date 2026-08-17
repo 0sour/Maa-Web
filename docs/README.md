@@ -28,6 +28,8 @@
 | `ui-design/07-component-gallery.html` | 全控件组件画廊：按钮/输入/下拉/表单/列表/日志等全部交互控件示例 |
 | `ui-design/09-autotask-account-detail.html` | 自动任务页设计稿（终版）：时间槽 × 账号 × 方案配置 + RUN TEST + 独立日志 |
 | `ui-design/10-logs-source.html` | 作战日志按来源区分设计稿：实时/历史来源选择框 + 每日 [普通任务]/[自动任务] 分列 |
+| `ui-design/11-toolbox.html` | 工具箱页设计稿：工具导航（三识别 + 抽卡/窥屏占位）+ 识别面板 + 历史记录调用展示 + 招募联动 |
+| `ui-design/11-toolbox-gacha-confirm.html` | 抽卡安全流程设计稿（待实现）：设置开关 + 双弹窗确认（5s 倒计时才可点「确认」） |
 
 > 设计稿与规范为前端实现契约：正式开发时组件需引用规范中的 Token（CSS 变量），参数控件语义对齐 PRD §4.3「控件类型速查」。
 
