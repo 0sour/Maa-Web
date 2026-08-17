@@ -76,6 +76,23 @@ docker compose up -d            # 应用升级
 
 数据卷：`maaweb-config`（SQLite + 设置）、`maaweb-logs`（任务日志）、`maaweb-cache`（引擎包/资源）、`maaweb-media`（截图/录像）。
 
+### 6.1 增量同步（热更新，不重建镜像）
+
+开发期小改动直接覆盖容器内文件 + 重启，避免整镜像重建：
+
+```bash
+# 后端代码
+docker cp backend/app/api/v1/xxx.py maaweb-api:/app/app/api/v1/xxx.py   # 绝对路径直放
+docker restart maaweb-api
+
+# 前端 dist（nginx 容器默认 nginx 用户无法覆盖 root 属主旧文件，需 -u 0）
+cd frontend && tar czf /tmp/dist.tgz -C dist .
+docker cp /tmp/dist.tgz maaweb-nginx:/tmp/ && \
+docker exec -u 0 maaweb-nginx sh -c 'rm -rf /usr/share/nginx/html/* && tar xzf /tmp/dist.tgz -C /usr/share/nginx/html/ && rm -f /tmp/dist.tgz'
+```
+
+> 踩坑记录：① 后端同步**不要用 tar 保留相对路径**解压进容器——`tar czf x.tgz backend/app/...` 解压到 `/app` 会落到 `/app/backend/...`，真实代码没被覆盖（表现为改动不生效）；直接用 `docker cp 单文件 → 容器绝对路径`。② scp 多文件到同一目录时**避免同名文件**（如两个 `toolbox.py`），后传的会覆盖先传的。
+
 ## 7. 常见问题
 
 | 现象 | 处理 |
