@@ -371,25 +371,58 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="stagesTodayErr" class="today-err">⚠ {{ stagesTodayErr }}</div>
         <div class="today-body">
+          <!-- 资源收集活动（全资源开放） -->
           <template v-if="stagesToday.resource_collection">
-            <div class="rc-line">｢{{ stagesToday.resource_collection.name }}｣ {{ daysLeftText(stagesToday.resource_collection.days_left) }}</div>
+            <div class="rc-line">
+              <span class="diamond"></span>
+              <b>｢{{ stagesToday.resource_collection.name }}｣</b>
+              <span class="days-badge">{{ daysLeftText(stagesToday.resource_collection.days_left) }}</span>
+            </div>
           </template>
+
+          <!-- SideStory 活动块 -->
           <template v-for="act in stagesToday.activities" :key="act.name">
             <div class="act-block">
-              <div class="act-head">｢{{ act.name }}｣ {{ daysLeftText(act.days_left) }}</div>
-              <div v-for="(s, si) in act.stages" :key="si" class="today-stage">
-                <span class="st">{{ s.stage }}</span>
-                <span class="dp">{{ s.drop }}</span>
+              <div class="act-head">
+                <span class="diamond"></span>
+                <b>｢{{ act.name }}｣</b>
+                <span class="days-badge">{{ daysLeftText(act.days_left) }}</span>
+              </div>
+              <div class="stage-grid">
+                <div v-for="(s, si) in act.stages" :key="si" class="stage-card">
+                  <span class="s-code">{{ s.stage }}</span>
+                  <span class="s-lbl">掉落</span>
+                  <span class="s-drop-chip">{{ s.drop }}</span>
+                </div>
               </div>
             </div>
           </template>
+
+          <!-- 常驻资源/芯片本 -->
           <div class="perm-block">
-            <div v-for="(s, si) in stagesToday.open_stages" :key="si" class="today-stage">
-              <span class="st">{{ s.stage }}</span>
-              <span class="lbl">{{ s.label }}</span>
-              <span class="dp">{{ s.drops.map((g) => g.join(' / ')).join(' 或 ') }}</span>
+            <div class="perm-title">
+              <span class="diamond"></span>常驻资源本
+              <span class="perm-sub">今日开放</span>
+            </div>
+            <div class="stage-grid">
+              <div v-for="(s, si) in stagesToday.open_stages" :key="si" class="stage-card">
+                <span class="s-code">{{ s.stage }}</span>
+                <span class="s-lbl">{{ s.label }}</span>
+                <span class="drop-groups">
+                  <template v-for="(g, gi) in s.drops" :key="gi">
+                    <template v-if="gi > 0"><span class="drop-or">或</span></template>
+                    <span
+                      v-for="(d, di) in g"
+                      :key="di"
+                      class="s-drop-chip"
+                      :class="{ first: di === 0 }"
+                    >{{ d }}</span>
+                  </template>
+                </span>
+              </div>
             </div>
           </div>
+
           <div
             v-if="!stagesToday.resource_collection && stagesToday.activities.length === 0 && stagesToday.open_stages.length === 0"
             class="today-empty"
@@ -556,34 +589,80 @@ onBeforeUnmount(() => {
 }
 .today-panel .today-refresh:hover { color: var(--color-brand); border-color: var(--color-brand); }
 .today-panel .today-body {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 0 14px 10px; max-height: 300px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 0 14px 12px; max-height: 340px; overflow-y: auto;
 }
 .today-err { font-size: var(--font-size-xs); color: var(--color-danger); padding: 0 14px 8px; }
 .today-empty { font-size: var(--font-size-xs); color: var(--color-text-tertiary); padding: 12px 0; text-align: center; border: 1px dashed var(--color-border-default); }
-.rc-line {
-  font-size: var(--font-size-xs); color: var(--color-brand);
-  letter-spacing: 0.5px; padding: 5px 0;
+
+/* 活动行头（钻石 + 活动名 + 剩余天数徽章） */
+.act-block { display: flex; flex-direction: column; gap: 5px; }
+.rc-line, .act-head {
+  display: flex; align-items: center; gap: 8px;
+  letter-spacing: 0.5px; padding: 4px 0 2px;
 }
-.act-block { display: flex; flex-direction: column; gap: 2px; }
-.act-head {
-  font-size: var(--font-size-xs); color: var(--color-warning);
-  letter-spacing: 0.5px; padding: 6px 0 2px;
+.rc-line { font-size: var(--font-size-md); color: var(--color-brand); }
+.act-head { font-size: var(--font-size-md); color: var(--color-warning); }
+.diamond {
+  width: 9px; height: 9px; flex-shrink: 0;
+  border: 1px solid var(--color-brand);
+  transform: rotate(45deg);
+  background: rgba(216, 177, 106, 0.15);
+  display: inline-block;
 }
-.today-stage {
-  display: flex; align-items: baseline; gap: 10px;
-  font-size: var(--font-size-xs); color: var(--color-text-secondary);
-  padding: 2px 0; line-height: 1.6;
+.days-badge {
+  margin-left: auto;
+  font-size: var(--font-size-2xs); color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+  background: rgba(201, 143, 78, 0.1);
+  padding: 1px 8px; letter-spacing: 1px;
+  flex-shrink: 0;
 }
-.today-stage .st { font-family: var(--font-family-mono); color: var(--color-text-primary); min-width: 64px; flex-shrink: 0; }
-.today-stage .lbl { color: var(--color-text-tertiary); flex-shrink: 0; }
-.today-stage .dp { flex: 1; min-width: 0; }
-.perm-block { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
-.perm-block::before {
-  content: "常驻资源本（今日开放）"; display: block;
+.rc-line .days-badge { color: var(--color-brand); border-color: var(--color-brand); background: rgba(216, 177, 106, 0.12); }
+
+/* 关卡卡片（斜切角 + 关卡代码 + 掉落物 chips） */
+.stage-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.stage-card {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  padding: 4px 10px 4px 6px;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+.stage-card:hover { border-color: var(--color-brand-strong); }
+.s-code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm); color: var(--color-brand);
+  letter-spacing: 1px; white-space: nowrap;
+}
+.s-lbl {
   font-size: var(--font-size-2xs); color: var(--color-text-tertiary);
-  letter-spacing: 1px; padding: 6px 0 2px;
+  letter-spacing: 1px; white-space: nowrap;
 }
+.s-drop-chip {
+  font-size: var(--font-size-2xs); color: var(--color-text-secondary);
+  background: var(--color-bg-active);
+  border: 1px solid var(--color-border-default);
+  padding: 1px 8px; letter-spacing: 0.3px; white-space: nowrap;
+}
+.s-drop-chip.first { border-color: var(--color-brand-strong); color: var(--color-brand); }
+.drop-groups { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.drop-or {
+  font-size: var(--font-size-2xs); color: var(--color-text-tertiary);
+  letter-spacing: 1px; flex-shrink: 0;
+}
+
+/* 常驻资源本分区标题 */
+.perm-block { display: flex; flex-direction: column; gap: 6px; }
+.perm-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--font-size-2xs); color: var(--color-text-tertiary);
+  letter-spacing: 2px; padding: 8px 0 2px;
+  border-top: 1px dashed var(--color-border-default);
+}
+.perm-title .diamond { width: 7px; height: 7px; }
+.perm-sub { margin-left: auto; font-size: var(--font-size-2xs); color: var(--color-text-tertiary); letter-spacing: 1px; }
 .res-progress {
   width: 120px; height: 6px; flex-shrink: 0;
   accent-color: var(--color-brand);
