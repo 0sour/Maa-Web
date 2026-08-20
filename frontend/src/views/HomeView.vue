@@ -380,11 +380,16 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <!-- SideStory 活动块 -->
+          <!-- 活动关卡分区 -->
+          <template v-if="stagesToday.activities.length">
+            <div class="sec-title act-sec">
+              <span class="diamond"></span>进行中活动
+              <span class="sec-sub">{{ stagesToday.activities.length }} 个关卡组</span>
+            </div>
+          </template>
           <template v-for="act in stagesToday.activities" :key="act.name">
             <div class="act-block">
               <div class="act-head">
-                <span class="diamond"></span>
                 <b>｢{{ act.name }}｣</b>
                 <span class="days-badge">{{ daysLeftText(act.days_left) }}</span>
               </div>
@@ -398,11 +403,11 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <!-- 常驻资源/芯片本 -->
+          <!-- 轮换资源/芯片本分区 -->
           <div class="perm-block">
-            <div class="perm-title">
-              <span class="diamond"></span>常驻资源本
-              <span class="perm-sub">今日开放</span>
+            <div class="sec-title perm-sec">
+              <span class="diamond"></span>轮换资源本
+              <span class="sec-sub">按星期开放</span>
             </div>
             <div class="stage-grid">
               <div v-for="(s, si) in stagesToday.open_stages" :key="si" class="stage-card">
@@ -653,16 +658,24 @@ onBeforeUnmount(() => {
   letter-spacing: 1px; flex-shrink: 0;
 }
 
-/* 常驻资源本分区标题 */
+/* 分区标题（进行中活动 / 轮换资源本） */
 .perm-block { display: flex; flex-direction: column; gap: 6px; }
-.perm-title {
+.act-head { display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px; padding: 4px 0 2px; }
+.act-head b { font-size: var(--font-size-md); color: var(--color-warning); font-weight: 400; letter-spacing: 1px; }
+.sec-title {
   display: flex; align-items: center; gap: 8px;
   font-size: var(--font-size-2xs); color: var(--color-text-tertiary);
   letter-spacing: 2px; padding: 8px 0 2px;
-  border-top: 1px dashed var(--color-border-default);
 }
-.perm-title .diamond { width: 7px; height: 7px; }
-.perm-sub { margin-left: auto; font-size: var(--font-size-2xs); color: var(--color-text-tertiary); letter-spacing: 1px; }
+.sec-title .diamond { width: 7px; height: 7px; }
+.sec-title .sec-sub { margin-left: auto; font-size: var(--font-size-2xs); color: var(--color-text-tertiary); letter-spacing: 1px; }
+.act-sec { padding-top: 2px; }
+/* 轮换区与活动区之间的强分隔：实线 + 上间距 */
+.perm-sec {
+  border-top: 1px solid var(--color-border-default);
+  margin-top: 6px; padding-top: 10px;
+  color: var(--color-text-secondary);
+}
 .res-progress {
   width: 120px; height: 6px; flex-shrink: 0;
   accent-color: var(--color-brand);
