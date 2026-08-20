@@ -168,9 +168,10 @@ Invoke-RestMethod http://127.0.0.1:8000/api            # 期望 JSON 元信息
 | `backend/tests/test_task_schemes_api.py` | 任务方案后端化：CRUD 全流程 + 同名覆盖 upsert + 校验（空名 422/404/改名冲突 409）+ 队列草稿读写（daily/tasks、非法键 422） | ✅ 已落地（4 用例） |
 | `backend/tests/test_toolbox_api.py` | M5 工具箱第一批：识别触发（离线 409/忙碌 409/非法工具 422）+ 任务状态轮询 + 历史记录 CRUD（保存/过滤/详情调用/删除）+ 招募联动 execute（select/confirm 参数）+ 结果解析纯函数（公招 result/tags、仓库 data、干员 own_opers、摘要） | ✅ 已落地（10 用例） |
 | `backend/tests/test_notify.py` | M6 外部通知：渠道消息构造（Server酱 URL/钉钉加签/自定义模板与默认 JSON）+ 发送主流程（无配置空返回/事件开关/多渠道+禁用过滤/HTTP 错误与异常落库）+ API（测试发送/记录/重发 404） | ✅ 已落地（11 用例） |
+| `backend/tests/test_stages_today.py` | 今日开放关卡：时间/时区解析（TimeZone 转 UTC）+ 活动开放窗口与剩余天数过滤（过期滤除）+ 常驻资源/芯片本星期过滤（周一轮换验证）+ 掉落组照抄客户端映射 + 无缓存网络失败降级本地（asyncio） | ✅ 已落地（5 用例） |
 | `frontend/scripts/verify-ui.mjs` | R4/R6/R7/R11：L3 浏览器自动化回归（首页/设备 CRUD+连接终态/检测面板/占位页/控制台错误） | ✅ 已落地（27 断言） |
 
-> 全量 pytest 实测：**330 passed**（2026-08-16，含 detect 引擎字段 / schema 迁移回归 / offline 过滤 / 任务方案与队列草稿后端化 / 自动任务组立即落库 / 配置导出导入 / 空槽名允许）。用例数含参数化展开；新增模块已登记本表。
+> 全量 pytest 实测：**335 passed**（2026-08-17，含 detect 引擎字段 / schema 迁移回归 / offline 过滤 / 任务方案与队列草稿后端化 / 自动任务组立即落库 / 配置导出导入 / 空槽名允许 / toolbox 三识别链路 / 今日开放关卡。用例数含参数化展开；新增模块已登记本表。
 
 ---
 
