@@ -51,3 +51,47 @@ class ResourceItem(BaseModel):
     id: str
     name: str
     classify_type: str = ""
+
+
+class ActivityStage(BaseModel):
+    """活动内关卡（名称 + 掉落物）。
+
+    对应 MAA 客户端 GetStageTips 的 `关卡名: 掉落材料名` 行。
+    """
+
+    stage: str
+    drop: str
+
+
+class ActivityInfo(BaseModel):
+    """今日开放中的 SideStory 活动。"""
+
+    name: str
+    days_left: int | None = None
+    stages: list[ActivityStage] = []
+
+
+class ResourceCollectionInfo(BaseModel):
+    """资源全开放活动（龙门市区等，含剩余天数）。"""
+
+    name: str
+    days_left: int | None = None
+
+
+class PermanentStageInfo(BaseModel):
+    """常驻资源/芯片关卡（今日开放）：掉落或掉落组（芯片本多组合）。"""
+
+    stage: str
+    label: str
+    drops: list[list[str]] = []
+
+
+class TodayStages(BaseModel):
+    """GET /resources/stages/today — 今日开放关卡（对齐 MAA 客户端主界面提示）。"""
+
+    game_day: dict[str, str]  # {date, weekday}
+    source: str  # web | cache | local
+    fetched_at: str
+    resource_collection: ResourceCollectionInfo | None = None
+    activities: list[ActivityInfo] = []
+    open_stages: list[PermanentStageInfo] = []

@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useDevicesStore } from '@/stores/devices'
 import { useTasksStore } from '@/stores/tasks'
-import { resourcesApi, type ResourceStatus } from '@/api/resources'
+import { resourcesApi, type ResourceStatus, type TodayStages } from '@/api/resources'
 import { useTaskQueue } from '@/tasks/useTaskQueue'
 import { useQueueDraft } from '@/tasks/useQueueDraft'
 import DropSelect, { type DropOption } from '@/tasks/forms/DropSelect.vue'
@@ -244,12 +244,35 @@ async function startResourceUpdate() {
   }, 3000)
 }
 
+// ── 今日开放关卡（对齐 MAA 客户端主界面提示） ──────────
+const stagesToday = ref<TodayStages | null>(null)
+const stagesTodayErr = ref('')
+
+const sourceLabels: Record<string, string> = {
+  web: '官方数据', cache: '缓存数据', local: '本地常驻',
+}
+
+function daysLeftText(n: number | null | undefined): string {
+  if (n == null) return '—'
+  return n > 0 ? `剩余 ${n} 天` : '不足一日'
+}
+
+async function loadStagesToday() {
+  try {
+    stagesToday.value = await resourcesApi.stagesToday()
+    stagesTodayErr.value = ''
+  } catch (e: unknown) {
+    stagesTodayErr.value = (e as { message?: string })?.message ?? '读取今日开放失败'
+  }
+}
+
 // ── 生命周期 ───────────────────────────────────────────
 onMounted(async () => {
   app.probeBackend()
   devices.fetchList()
   devices.detectDevices()
   loadResourceStatus()
+  loadStagesToday()
   // 后端草稿回填（跨浏览器一致；加载完成后 watchSave 才生效）
   const draft = await queueDraft.loadDraft()
   if (draft) restore(draft)
@@ -337,6 +360,41 @@ onBeforeUnmount(() => {
           :disabled="res?.updating || res?.dynamic_syncing"
           @click="startDynamicSync"
         >同步动态资源</button>
+      </div>
+
+      <!-- 今日开放关卡（对齐 MAA 客户端主界面提示） -->
+      <div v-if="stagesToday" class="panel today-panel">
+        <div class="panel-hd">
+          <span class="t">今日开放</span>
+          <span class="sub">游戏日 {{ stagesToday.game_day.weekday }} · {{ sourceLabels[stagesToday.source] ?? stagesToday.source }}</span>
+          <button class="today-refresh" title="刷新" @click="loadStagesToday">⟳</button>
+        </div>
+        <div v-if="stagesTodayErr" class="today-err">⚠ {{ stagesTodayErr }}</div>
+        <div class="today-body">
+          <template v-if="stagesToday.resource_collection">
+            <div class="rc-line">｢{{ stagesToday.resource_collection.name }}｣ {{ daysLeftText(stagesToday.resource_collection.days_left) }}</div>
+          </template>
+          <template v-for="act in stagesToday.activities" :key="act.name">
+            <div class="act-block">
+              <div class="act-head">｢{{ act.name }}｣ {{ daysLeftText(act.days_left) }}</div>
+              <div v-for="(s, si) in act.stages" :key="si" class="today-stage">
+                <span class="st">{{ s.stage }}</span>
+                <span class="dp">{{ s.drop }}</span>
+              </div>
+            </div>
+          </template>
+          <div class="perm-block">
+            <div v-for="(s, si) in stagesToday.open_stages" :key="si" class="today-stage">
+              <span class="st">{{ s.stage }}</span>
+              <span class="lbl">{{ s.label }}</span>
+              <span class="dp">{{ s.drops.map((g) => g.join(' / ')).join(' 或 ') }}</span>
+            </div>
+          </div>
+          <div
+            v-if="!stagesToday.resource_collection && stagesToday.activities.length === 0 && stagesToday.open_stages.length === 0"
+            class="today-empty"
+          >暂无可开放的关卡信息——网络不可用时可查看下方常驻关卡</div>
+        </div>
       </div>
 
       <!-- 双栏：作战部署（共享组件）+ 作战记录 -->
@@ -482,6 +540,49 @@ onBeforeUnmount(() => {
   flex-shrink: 0; font-size: var(--font-size-xs); color: var(--color-text-secondary);
   letter-spacing: 0.3px; max-width: 300px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── 今日开放面板 ─────────────────────── */
+.today-panel {
+  border-top: 1px solid var(--color-border-default);
+}
+.today-panel .panel-hd { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.today-panel .panel-hd .t { font-size: var(--font-size-sm); color: var(--color-text-secondary); letter-spacing: var(--font-tracking-widest); }
+.today-panel .panel-hd .sub { font-size: var(--font-size-2xs); color: var(--color-text-tertiary); letter-spacing: 0.5px; }
+.today-panel .today-refresh {
+  margin-left: auto; border: 1px solid var(--color-border-default); background: none;
+  color: var(--color-text-tertiary); font-size: var(--font-size-sm);
+  padding: 2px 8px; cursor: pointer; transition: all var(--motion-duration-fast) var(--motion-easing-standard);
+}
+.today-panel .today-refresh:hover { color: var(--color-brand); border-color: var(--color-brand); }
+.today-panel .today-body {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 0 14px 10px; max-height: 300px; overflow-y: auto;
+}
+.today-err { font-size: var(--font-size-xs); color: var(--color-danger); padding: 0 14px 8px; }
+.today-empty { font-size: var(--font-size-xs); color: var(--color-text-tertiary); padding: 12px 0; text-align: center; border: 1px dashed var(--color-border-default); }
+.rc-line {
+  font-size: var(--font-size-xs); color: var(--color-brand);
+  letter-spacing: 0.5px; padding: 5px 0;
+}
+.act-block { display: flex; flex-direction: column; gap: 2px; }
+.act-head {
+  font-size: var(--font-size-xs); color: var(--color-warning);
+  letter-spacing: 0.5px; padding: 6px 0 2px;
+}
+.today-stage {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: var(--font-size-xs); color: var(--color-text-secondary);
+  padding: 2px 0; line-height: 1.6;
+}
+.today-stage .st { font-family: var(--font-family-mono); color: var(--color-text-primary); min-width: 64px; flex-shrink: 0; }
+.today-stage .lbl { color: var(--color-text-tertiary); flex-shrink: 0; }
+.today-stage .dp { flex: 1; min-width: 0; }
+.perm-block { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.perm-block::before {
+  content: "常驻资源本（今日开放）"; display: block;
+  font-size: var(--font-size-2xs); color: var(--color-text-tertiary);
+  letter-spacing: 1px; padding: 6px 0 2px;
 }
 .res-progress {
   width: 120px; height: 6px; flex-shrink: 0;

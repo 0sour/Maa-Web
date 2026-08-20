@@ -43,6 +43,21 @@ export interface ResourceItem {
   classify_type: string
 }
 
+/** 今日开放关卡（/resources/stages/today，对齐 MAA 客户端主界面提示） */
+export interface TodayStages {
+  game_day: { date: string; weekday: string }
+  /** web | cache | local */
+  source: string
+  fetched_at: string
+  resource_collection: { name: string; days_left: number | null } | null
+  activities: {
+    name: string
+    days_left: number | null
+    stages: { stage: string; drop: string }[]
+  }[]
+  open_stages: { stage: string; label: string; drops: string[][] }[]
+}
+
 export const resourcesApi = {
   status: () =>
     http.get<ResourceStatus>('/v1/resources/status').then((r) => r.data),
@@ -54,6 +69,9 @@ export const resourcesApi = {
   /** 引擎包关卡代号列表（任务参数「目标关卡」搜索选择） */
   stages: () =>
     http.get<string[]>('/v1/resources/stages').then((r) => r.data),
+  /** 今日开放关卡（活动 + 资源收集 + 常用资源/芯片本） */
+  stagesToday: () =>
+    http.get<TodayStages>('/v1/resources/stages/today').then((r) => r.data),
   /** 引擎包材料表（任务参数「指定掉落」搜索选择） */
   items: () =>
     http.get<ResourceItem[]>('/v1/resources/items').then((r) => r.data),

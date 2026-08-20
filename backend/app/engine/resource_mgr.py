@@ -387,6 +387,32 @@ def item_list() -> list[dict]:
 
 
 @functools.lru_cache(maxsize=1)
+def item_names_map() -> dict[str, str]:
+    """全量物品 id→名称映射（不过滤，供「今日开放关卡」掉落展示等场景用）。
+
+    区别于 item_list()：保留所有含名称的物品（含芯片/许可等），仅作 id→中文名查表。
+    文件缺失/损坏返回空 dict。
+    """
+    try:
+        data = json.loads(
+            (get_settings().maa_resource_dir / "resource" / "item_index.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, str] = {}
+    for iid, entry in data.items():
+        if isinstance(entry, dict):
+            name = str(entry.get("name") or "").strip()
+            if name:
+                out[str(iid)] = name
+    return out
+
+
+@functools.lru_cache(maxsize=1)
 def operator_list() -> list[dict]:
     """引擎包 resource/battle_data.json 的干员表（char_id → 名称），供「追加干员」搜索选择。
 

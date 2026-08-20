@@ -13,8 +13,13 @@ import logging
 
 from fastapi import APIRouter
 
-from app.engine import resource_mgr
-from app.schemas.resource import ResourceItem, ResourceStatus, ResourceUpdateResult
+from app.engine import resource_mgr, stages_today
+from app.schemas.resource import (
+    ResourceItem,
+    ResourceStatus,
+    ResourceUpdateResult,
+    TodayStages,
+)
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +89,16 @@ async def resource_sync() -> ResourceUpdateResult:
 async def resource_stages() -> list[str]:
     """引擎包关卡代号列表（供「目标关卡」搜索下拉选择）。"""
     return resource_mgr.stage_codes()
+
+
+@router.get("/stages/today", response_model=TodayStages)
+async def resource_stages_today() -> TodayStages:
+    """今日开放关卡（活动 + 资源收集 + 常用资源/芯片本），对齐 MAA 客户端主界面提示。
+
+    数据来自官方 StageActivityV2.json（带 6h 缓存，失败降级本地常驻表）；游戏日按凌晨
+    4 点重置（YJ 历）判断「今天」。
+    """
+    return TodayStages(**await stages_today.compute())
 
 
 @router.get("/items", response_model=list[ResourceItem])

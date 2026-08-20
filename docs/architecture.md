@@ -328,6 +328,7 @@ Setting       (S-06/09) key, value  (通知通道 / GPU 加速 / 上传 ID 等)
 | POST | `/api/v1/resources/update` | 后台下载/更新引擎包（按更新源分发：GitHub release 或 MirrorChyan 增量包） |
 | POST | `/api/v1/resources/sync` | 动态资源增量同步（MaaResource，按更新源分发 diff/full/mirrorchyan） |
 | GET | `/api/v1/resources/stages` | 引擎包关卡代号列表（任务参数「目标关卡」搜索） |
+| GET | `/api/v1/resources/stages/today` | **今日开放关卡**（活动 + 资源收集 + 常用资源/芯片本，对齐 MAA 客户端主界面提示；官方 StageActivityV2.json 带 6h 缓存，失败降级本地常驻表；游戏日按凌晨 4 点重置） |
 | GET | `/api/v1/resources/items` | 引擎包材料/物品表（item_index.json，任务参数「指定掉落」搜索选择） |
 | GET | `/api/v1/settings/mirror` | 镜像源设置读取（更新源 / ghproxy 前缀 / CDK 脱敏状态 / 有效期诊断） |
 | PUT | `/api/v1/settings/mirror` | 镜像源设置保存（热更新立即生效；CDK 未变更保留有效期） |
