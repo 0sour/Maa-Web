@@ -462,7 +462,7 @@ def recruit_tags() -> list[str]:
     return sorted(str(t) for t in tags if str(t).strip())
 
 
-_ROGUE_THEMES = ("Phantom", "Mizuki", "Sami", "Sarkaz", "JieGarden")
+_ROGUE_THEMES = ("Phantom", "Mizuki", "Sami", "Sarkaz", "JieGarden", "BlackFlow")
 
 
 @functools.lru_cache(maxsize=8)

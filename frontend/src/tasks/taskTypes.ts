@@ -52,7 +52,7 @@ export const DRONE_USES_LABELS: Record<string, string> = {
   Chip: '制造站-芯片组',
 }
 /** 肉鸽主题 */
-export const ROGUE_THEMES = ['Phantom', 'Mizuki', 'Sami', 'Sarkaz', 'JieGarden']
+export const ROGUE_THEMES = ['Phantom', 'Mizuki', 'Sami', 'Sarkaz', 'JieGarden', 'BlackFlow']
 /** 剿灭关卡（对齐 MAA 客户端 FightSettingsUserControlModel.AnnihilationModeList） */
 export const ANNIHILATION_STAGES: { value: string; label: string }[] = [
   { value: 'Annihilation', label: '当期剿灭' },
@@ -107,6 +107,11 @@ export const TASK_TYPES: TaskTypeDef[] = [
       reception_message_board: true,
       reception_clue_exchange: true, reception_send_clue: true,
       filename: '', plan_index: 0,
+      // 跨设施组合（v6.17 基建效率算法重写新增，引擎键透传）
+      use_pinus_sylvestris: false, use_perception_information: false,
+      use_worldly_plight: false, use_abyssal_hunter: false,
+      // 菲亚梅塔心情恢复（v6.17 宿舍换班调整新增）
+      fiammetta_recovery_enabled: false, fiammetta_targets: ['清流', '可露希尔', '但书'],
     },
   },
   {
@@ -143,6 +148,8 @@ export const TASK_TYPES: TaskTypeDef[] = [
       collectible_mode_squad: '', start_with_seed: '',  // 种子为字符串键
       start_with_seed_enabled: false,  // 使用种子开关（UI 门控）
       find_playTime_target: 1,  // 界园刷常乐目标节点
+      blackflow_strategy: 'baby_animal',  // 黑流树海刷襁褓动物策略（引擎键，当前固定值）
+      blackflow_cultivation_target: 'swaddled_cat',  // 黑流树海目标品种：swaddled_cat/feathered_serpent/dog/cerberus
     },
   },
   {

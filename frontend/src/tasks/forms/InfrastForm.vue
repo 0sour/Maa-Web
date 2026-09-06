@@ -42,6 +42,17 @@ const dronesModel = computed({
     p.value.drones = v
   },
 })
+
+// ── 菲亚梅塔恢复目标（v6.17 宿舍换班调整新增，对齐客户端 _fiammettaTargetEntries） ──
+const FIAMMETTA_TARGETS = ['清流', '可露希尔', '但书', '巫恋', '龙舌兰', '歌蕾蒂娅']
+if (!Array.isArray(p.value.fiammetta_targets) || !p.value.fiammetta_targets.length) {
+  p.value.fiammetta_targets = ['清流', '可露希尔', '但书']
+}
+function setFiammettaTarget(i: number, op: string) {
+  const list = Array.isArray(p.value.fiammetta_targets) ? [...p.value.fiammetta_targets] : []
+  list[i] = op
+  p.value.fiammetta_targets = list
+}
 </script>
 
 <template>
@@ -92,6 +103,34 @@ const dronesModel = computed({
     <div class="f-row" v-if="p.mode !== 20000">
       <label class="f-label">宿舍填入信赖未满干员</label>
       <span class="f-switch" :class="{ on: p.dorm_trust_enabled }" @click="p.dorm_trust_enabled = !p.dorm_trust_enabled"></span>
+    </div>
+    <div class="f-row" v-if="p.mode !== 20000">
+      <label class="f-label">启用菲亚梅塔心情恢复<small>换班开始时将恢复目标与满心情菲亚梅塔放入宿舍互换心情，菲亚梅塔随后留在宿舍恢复（v6.17+）</small></label>
+      <span class="f-switch" :class="{ on: p.fiammetta_recovery_enabled }" @click="p.fiammetta_recovery_enabled = !p.fiammetta_recovery_enabled"></span>
+    </div>
+    <template v-if="p.fiammetta_recovery_enabled && p.mode !== 20000">
+      <div class="f-row" v-for="i in 3" :key="i">
+        <label class="f-label">菲亚梅塔恢复目标 {{ i }}<small v-if="i === 1">不推荐巫恋/龙舌兰（007 难实现）</small></label>
+        <select class="f-text" :value="String((p.fiammetta_targets as string[])?.[i - 1] ?? '清流')" @change="setFiammettaTarget(i - 1, ($event.target as HTMLSelectElement).value)">
+          <option v-for="op in FIAMMETTA_TARGETS" :key="op" :value="op">{{ op }}</option>
+        </select>
+      </div>
+    </template>
+    <div class="f-row" v-if="p.mode === 0">
+      <label class="f-label">使用红松骑士团跨设施组合<small>焰尾(精二)、薇薇安娜(精二)、野鬃/灰毫/远牙(精二)至少一个参与计算：砾</small></label>
+      <span class="f-switch" :class="{ on: p.use_pinus_sylvestris }" @click="p.use_pinus_sylvestris = !p.use_pinus_sylvestris"></span>
+    </div>
+    <div class="f-row" v-if="p.mode === 0">
+      <label class="f-label">使用感知信息跨设施组合<small>絮雨(精二)、迷迭香(精二)、黑键(精二)；优先度高于人间烟火</small></label>
+      <span class="f-switch" :class="{ on: p.use_perception_information }" @click="p.use_perception_information = !p.use_perception_information"></span>
+    </div>
+    <div class="f-row" v-if="p.mode === 0">
+      <label class="f-label">使用人间烟火跨设施组合<small>巫恋(精二)或龙舌兰(精二)</small></label>
+      <span class="f-switch" :class="{ on: p.use_worldly_plight }" @click="p.use_worldly_plight = !p.use_worldly_plight"></span>
+    </div>
+    <div class="f-row" v-if="p.mode === 0">
+      <label class="f-label">使用深海猎人跨设施组合<small>斯卡蒂(精二)、歌蕾蒂娅(精二)</small></label>
+      <span class="f-switch" :class="{ on: p.use_abyssal_hunter }" @click="p.use_abyssal_hunter = !p.use_abyssal_hunter"></span>
     </div>
     <div class="f-row">
       <label class="f-label">训练室连续专精</label>

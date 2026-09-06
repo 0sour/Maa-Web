@@ -40,6 +40,51 @@ const CHANNEL_LABEL: Record<string, string> = {
   custom: '自定义 Webhook',
 }
 
+// ── Webhook 预置模板（对齐客户端 WebhookPresetTemplate；v6.17 新增 WeCom/ntfy） ──
+const WEBHOOK_PRESETS = [
+  { id: '__custom__', label: '自定义（手动填写）', url: '', headers: '', body: '' },
+  { id: 'Discord', label: 'Discord Webhook', url: '', headers: '', body: '{"content": "{content}"}' },
+  {
+    id: 'KOOK-Channel', label: 'KOOK 频道消息',
+    url: 'https://www.kookapp.cn/api/v3/message/create',
+    headers: 'Authorization: Bot <bot_token>',
+    body: '{"type": 9, "target_id": "<channel_id>", "content": "**{title}**\\n{content}"}',
+  },
+  {
+    id: 'KOOK-Direct', label: 'KOOK 私信',
+    url: 'https://www.kookapp.cn/api/v3/direct-message/create',
+    headers: 'Authorization: Bot <bot_token>',
+    body: '{"type": 9, "target_id": "<user_id>", "content": "**{title}**\\n{content}"}',
+  },
+  {
+    id: 'MeoW', label: 'MeoW',
+    url: 'https://api.chuckfang.com/<nickname>',
+    headers: '',
+    body: '{"title":"{title}","msg":"{content}\\n{time}"}',
+  },
+  {
+    id: 'ntfy', label: 'ntfy',
+    url: 'https://ntfy.sh/<topic>',
+    headers: '',
+    body: '{"message": "{content}", "title": "{title}"}',
+  },
+  {
+    id: 'WeCom', label: '企业微信 WeCom',
+    url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=<key>',
+    headers: '',
+    body: '{"msgtype": "text", "text": {"content": "{content}"}}',
+  },
+]
+function applyPreset(presetId: string) {
+  const ch = form.channels.find((c) => c.type === 'custom')
+  if (!ch) return
+  const preset = WEBHOOK_PRESETS.find((p) => p.id === presetId)
+  if (!preset) return
+  ch.url = preset.url
+  ch.headers = preset.headers
+  ch.body = preset.body
+}
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -177,6 +222,14 @@ onMounted(load)
         </div>
         <div v-if="ch.type === 'custom'" class="chan-fields">
           <div class="f-row">
+            <label class="f-label">预置模板<small>对齐客户端 v6.17 预置，填入后仍可修改</small></label>
+            <div class="f-ctrl">
+              <select class="f-text" value="__custom__" @change="applyPreset(($event.target as HTMLSelectElement).value)">
+                <option v-for="p in WEBHOOK_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="f-row">
             <label class="f-label">Webhook URL<small>企业微信机器人等一切 webhook 地址</small></label>
             <div class="f-ctrl"><input class="f-text wide" type="text" v-model="ch.url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…" /></div>
           </div>
@@ -185,7 +238,7 @@ onMounted(load)
             <div class="f-ctrl"><input class="f-text wide" type="text" v-model="ch.headers" placeholder="Content-Type: application/json" /></div>
           </div>
           <div class="f-row">
-            <label class="f-label">Body 模板<small>可空（默认 JSON）；占位 {title} {content}</small></label>
+            <label class="f-label">Body 模板<small>可空（默认 JSON）；占位 {title} {content} {time}</small></label>
             <div class="f-ctrl"><input class="f-text wide" type="text" v-model="ch.body" placeholder='{"msgtype":"text","text":{"content":"{title}\n{content}"}}' /></div>
           </div>
         </div>

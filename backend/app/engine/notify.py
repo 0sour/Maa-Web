@@ -13,6 +13,7 @@ import hmac
 import json
 import logging
 import time
+from datetime import datetime
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -106,7 +107,7 @@ def _dingtalk(ch: dict, title: str, content: str) -> tuple[str, dict, dict]:
 
 
 def _custom(ch: dict, title: str, content: str) -> tuple[str, str, dict]:
-    """自定义 Webhook：URL + Headers（每行 K: V）+ Body 模板（{title}/{content} 占位）。"""
+    """自定义 Webhook：URL + Headers（每行 K: V）+ Body 模板（{title}/{content}/{time} 占位）。"""
     url = str(ch.get("url", ""))
     template = str(ch.get("body", "")).strip()
     headers: dict[str, str] = {}
@@ -115,7 +116,11 @@ def _custom(ch: dict, title: str, content: str) -> tuple[str, str, dict]:
             k, v = line.split(":", 1)
             headers[k.strip()] = v.strip()
     if template:
-        body = template.replace("{title}", title).replace("{content}", content)
+        body = (
+            template.replace("{title}", title)
+            .replace("{content}", content)
+            .replace("{time}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
         headers.setdefault(
             "Content-Type",
             "application/json" if body.lstrip().startswith(("{", "[")) else "text/plain",

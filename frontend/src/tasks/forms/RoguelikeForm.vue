@@ -4,7 +4,7 @@
  * 主题联动：难度上限 / 模式 / 开局分队（含主题×模式特例）/ 开局职业组 均随主题变化，
  * 数据对齐客户端 _squadDictionary / _commonSquads / GetMaxDifficultyForTheme / Update*List。
  * 模式枚举：0 刷分 / 1 刷源石锭 / 4 凹开局 / 5 刷坍缩范式(萨米) / 6 月度小队 /
- * 7 深入调查 / 20001 刷常乐节点(界园)；2、3 已从客户端移除。
+ * 7 深入调查 / 20001 刷常乐节点(界园) / 30001 刷襁褓动物(黑流树海)；2、3 已从客户端移除。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useFormParams } from './useFormParams'
@@ -21,7 +21,7 @@ const expectedParadigms = tagRef('expected_collapsal_paradigms')
 
 // ── 主题（中文名，对齐客户端 RoguelikeTheme） ──
 const THEME_LABELS: Record<string, string> = {
-  Phantom: '傀影', Mizuki: '水月', Sami: '萨米', Sarkaz: '萨卡兹', JieGarden: '界园',
+  Phantom: '傀影', Mizuki: '水月', Sami: '萨米', Sarkaz: '萨卡兹', JieGarden: '界园', BlackFlow: '黑流树海',
 }
 const themeOpts = computed<DropOption[]>(() =>
   Object.entries(THEME_LABELS).map(([value, label]) => ({ value, label })),
@@ -29,7 +29,7 @@ const themeOpts = computed<DropOption[]>(() =>
 
 // ── 难度上限（客户端 GetMaxDifficultyForTheme） ──
 const DIFF_MAX = 2147483647
-const DIFF_LIMITS: Record<string, number> = { Phantom: 15, Mizuki: 18, Sami: 15, Sarkaz: 18, JieGarden: 18 }
+const DIFF_LIMITS: Record<string, number> = { Phantom: 15, Mizuki: 18, Sami: 15, Sarkaz: 18, JieGarden: 18, BlackFlow: 15 }
 const diffOptions = computed<DropOption[]>(() => {
   const limit = DIFF_LIMITS[String(p.value.theme)] ?? 18
   const list: DropOption[] = [
@@ -44,9 +44,14 @@ const diffOptions = computed<DropOption[]>(() => {
 const BASE_MODES: [number, string][] = [
   [0, '0 刷分/奖励点数'], [1, '1 刷源石锭'], [4, '4 凹开局'], [6, '6 月度小队'], [7, '7 深入调查'],
 ]
+// 黑流树海专属模式（客户端 RoguelikeStrategyBlackFlow*：刷等级/投资/襁褓动物）
+const BLACKFLOW_MODES: [number, string][] = [
+  [0, '0 刷等级，快速飞三层'], [1, '1 刷源石锭，投资完退出'], [30001, '30001 刷襁褓动物'],
+]
 const THEME_MODES: Record<string, [number, string][]> = {
   Sami: [...BASE_MODES, [5, '5 刷坍缩范式']],
   JieGarden: [...BASE_MODES, [20001, '20001 刷常乐节点']],
+  BlackFlow: BLACKFLOW_MODES,
 }
 const currentModes = computed<DropOption[]>(() =>
   (THEME_MODES[String(p.value.theme)] ?? BASE_MODES).map(([value, label]) => ({ value: String(value), label })),
@@ -66,22 +71,39 @@ const THEME_SQUADS: Record<string, string[]> = {
     '特勤分队', '高台突破分队', '地面突破分队', '游客分队', '司岁台分队', '天师府分队',
     '花团锦簇分队', '棋行险着分队', '岁影回音分队', '代理人分队', '知学分队', '商贾分队',
   ],
+  BlackFlow_Default: [
+    '特勤分队', '矛头分队', '高台突破分队', '地面突破分队',
+    '本源研修分队', '文明开化分队', '开拓者分队', '多边贸易分队', '地质调查分队',
+  ],
 }
+// 通用分队（客户端 _commonSquads）；高规格分队仅下列主题可选（客户端显式排除 BlackFlow）
 const COMMON_SQUADS = [
-  '指挥分队', '后勤分队', '突击战术分队', '堡垒战术分队', '远程战术分队', '破坏战术分队', '高规格分队',
+  '指挥分队', '后勤分队', '突击战术分队', '堡垒战术分队', '远程战术分队', '破坏战术分队',
 ]
+const COMMON_SQUADS_HIGH_SPEC_THEMES = ['Phantom', 'Mizuki', 'Sami', 'Sarkaz', 'JieGarden']
 const squadOptions = computed<DropOption[]>(() => {
   const theme = String(p.value.theme)
   const mode = Number(p.value.mode)
   const key = `${theme}_${mode}`
   const themeSquads = THEME_SQUADS[key] ?? THEME_SQUADS[`${theme}_Default`] ?? []
-  return [...themeSquads, ...COMMON_SQUADS].map((label) => ({ value: label, label }))
+  const common = COMMON_SQUADS_HIGH_SPEC_THEMES.includes(theme)
+    ? [...COMMON_SQUADS, '高规格分队']
+    : COMMON_SQUADS
+  return [...themeSquads, ...common].map((label) => ({ value: label, label }))
 })
 
-// ── 开局职业组（客户端 UpdateRoguelikeRolesList；界园多两项） ──
+// ── 开局职业组（客户端 UpdateRoguelikeRolesList；界园/黑流树海多两项） ──
 // 职业构成来自游戏内「选择招募组合」（prts.wiki），随主题版本可能略有差异
 const THEME_ROLES: Record<string, DropOption[]> = {
   JieGarden: [
+    { value: '先手必胜', label: '先手必胜', desc: '先锋·狙击·特种' },
+    { value: '稳扎稳打', label: '稳扎稳打', desc: '重装·狙击·术师' },
+    { value: '取长补短', label: '取长补短', desc: '近卫·医疗·辅助' },
+    { value: '灵活部署', label: '灵活部署', desc: '先锋·辅助·特种' },
+    { value: '坚不可摧', label: '坚不可摧', desc: '重装·术师·医疗' },
+    { value: '随心所欲', label: '随心所欲', desc: '随机组合' },
+  ],
+  BlackFlow: [
     { value: '先手必胜', label: '先手必胜', desc: '先锋·狙击·特种' },
     { value: '稳扎稳打', label: '稳扎稳打', desc: '重装·狙击·术师' },
     { value: '取长补短', label: '取长补短', desc: '近卫·医疗·辅助' },
@@ -97,6 +119,21 @@ const BASE_ROLES: DropOption[] = [
   { value: '随心所欲', label: '随心所欲', desc: '随机组合' },
 ]
 const rolesOptions = computed<DropOption[]>(() => THEME_ROLES[String(p.value.theme)] ?? BASE_ROLES)
+
+// ── 黑流树海目标襁褓动物（客户端 RoguelikeBlackFlowCultivationTargetList） ──
+// 引擎值对齐客户端序列化：blackflow_cultivation_target（swaddled_xxx 四种）
+const CULTIVATION_TARGETS: { value: string; label: string }[] = [
+  { value: 'swaddled_cat', label: '襁褓中的猫' },
+  { value: 'swaddled_feathered_serpent', label: '襁褓羽蛇' },
+  { value: 'swaddled_dog', label: '襁褓中的狗' },
+  { value: 'swaddled_cerberus', label: '襁褓三头犬' },
+]
+const cultivationTargetModel = computed({
+  get: () => String(p.value.blackflow_cultivation_target ?? 'swaddled_cat'),
+  set: (v: string) => {
+    p.value.blackflow_cultivation_target = v
+  },
+})
 
 // ── 联动归一（客户端切主题/模式后校验当前值，失效回落默认） ──
 function inList(list: DropOption[], v: unknown): boolean {
@@ -214,7 +251,7 @@ const START_LIST: [string, string][] = [
       <DropSelect v-model="rolesModel" :options="rolesOptions" placeholder="稳扎稳打" />
     </div>
     <div class="f-row" v-if="p.mode === 4">
-      <label class="f-label">烧水分队<small>留空跟随开局分队</small></label>
+      <label class="f-label">刷开局使用分队<small>留空跟随开局分队</small></label>
       <DropSelect v-model="collectibleSquadModel" :options="squadOptions" placeholder="跟随开局分队" />
     </div>
     <div class="f-row">
@@ -228,6 +265,10 @@ const START_LIST: [string, string][] = [
         { value: '2', label: '2 黍' },
         { value: '3', label: '3 年' },
       ]" />
+    </div>
+    <div class="f-row" v-if="Number(p.mode) === 30001 && p.theme === 'BlackFlow'">
+      <label class="f-label">目标襁褓动物<small>黑流树海刷襁褓动物模式</small></label>
+      <DropSelect v-model="cultivationTargetModel" :options="CULTIVATION_TARGETS.map((t) => ({ value: t.value, label: t.label }))" />
     </div>
 
     <div class="f-sec">高级</div>
@@ -256,7 +297,7 @@ const START_LIST: [string, string][] = [
       </div>
     </template>
     <div class="f-row" v-if="p.mode === 4">
-      <label class="f-label">烧水时购物</label>
+      <label class="f-label">刷开局模式启用购物</label>
       <span class="f-switch" :class="{ on: p.collectible_mode_shopping }" @click="p.collectible_mode_shopping = !p.collectible_mode_shopping"></span>
     </div>
 
@@ -270,7 +311,7 @@ const START_LIST: [string, string][] = [
         <span class="f-switch" :class="{ on: p.only_start_with_elite_two }" @click="p.only_start_with_elite_two = !p.only_start_with_elite_two"></span>
       </div>
       <div class="f-row" v-if="!p.only_start_with_elite_two">
-        <label class="f-label">期望开局奖励</label>
+        <label class="f-label">刷开局期望奖励</label>
         <div class="f-checks">
           <span
             v-for="[k, label] in START_LIST" :key="k" class="f-check"
