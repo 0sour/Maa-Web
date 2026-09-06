@@ -22,7 +22,7 @@ def test_parse_dt_timezone() -> None:
 
 def test_parse_activities_open_window(monkeypatch: pytest.MonkeyPatch) -> None:
     # 注入固定「现在」= 2026-08-17 10:00 UTC（东八区 18:00，YJ 日 = 08-17）
-    monkeypatch.setattr(stages_today, "_yj_now", lambda: datetime(2026, 8, 17, 10, 0, 0))
+    monkeypatch.setattr(stages_today, "_utc_now", lambda: datetime(2026, 8, 17, 10, 0, 0))
 
     data = {
         "CN": {
@@ -92,3 +92,95 @@ def test_compute_falls_back_to_local(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(result["game_day"]["weekday"], str)
     assert isinstance(result["open_stages"], list)
     assert json.dumps(result, ensure_ascii=False)  # 可序列化
+
+
+# ── 小游戏（牛杂）解析 ─────────────────────────────────────────────────
+
+def test_parse_minigames_open_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    """活动条目按 UtcStartTime/UtcExpireTime 开窗过滤，插在常驻表之前。"""
+    monkeypatch.setattr(stages_today, "_utc_now", lambda: datetime(2026, 8, 17, 10, 0, 0))
+    data = {
+        "CN": {
+            "miniGame": [
+                {"Display": "进行中小游戏", "Value": "MiniGame@SomeActivity",
+                 "UtcStartTime": "2026/08/10 04:00:00", "UtcExpireTime": "2026/08/20 04:00:00", "TimeZone": 8},
+                {"Display": "未开放小游戏", "Value": "MiniGame@Future",
+                 "UtcStartTime": "2026/09/01 04:00:00", "UtcExpireTime": "2026/09/10 04:00:00", "TimeZone": 8},
+                {"Display": "已过期小游戏", "Value": "MiniGame@Past",
+                 "UtcStartTime": "2026/07/01 04:00:00", "UtcExpireTime": "2026/07/10 04:00:00", "TimeZone": 8},
+                {"Display": "无时间小游戏", "Value": "MiniGame@NoTime"},
+            ],
+        }
+    }
+    out = stages_today._parse_minigames(data)
+    values = [e["value"] for e in out]
+    # 开放中 + 无时间（常显）在前，常驻 5 条在后
+    assert values[:2] == ["MiniGame@SomeActivity", "MiniGame@NoTime"]
+    assert "MiniGame@Future" not in values
+    assert "MiniGame@Past" not in values
+    act = out[0]
+    assert act["source"] == "activity"
+    # 08/20 04:00+8 = UTC 08-19 20:00；now 08-17 10:00 UTC → 2.4 天 → 2
+    assert act["days_left"] == 2
+    # 常驻表兜底且 source=permanent
+    perm = [e for e in out if e["source"] == "permanent"]
+    assert [e["value"] for e in perm] == [
+        "SS@Store@Begin", "GreenTicket@Store@Begin", "YellowTicket@Store@Begin",
+        "RA@Store@Begin", "MiniGame@SecretFront",
+    ]
+
+
+def test_parse_minigames_permanent_fallback() -> None:
+    """无数据/非 CN 时仅常驻表。"""
+    out = stages_today._parse_minigames(None)
+    assert len(out) == 5
+    assert all(e["source"] == "permanent" for e in out)
+    assert stages_today._parse_minigames({}) == out
+
+
+def test_parse_minigames_single_object() -> None:
+    """miniGame 为单对象（非数组）时也解析（对齐客户端兼容分支）。"""
+    out = stages_today._parse_minigames({"CN": {"miniGame": {"Display": "单条", "Value": "MiniGame@Solo"}}})
+    assert out[0]["value"] == "MiniGame@Solo"
+    assert out[0]["source"] == "activity"
+    assert len(out) == 6
+
+
+def test_compute_includes_minigames(monkeypatch: pytest.MonkeyPatch) -> None:
+    """compute() 输出含 minigames 字段（本地降级也有常驻条目）。"""
+
+    async def _no_net() -> None:
+        return None
+
+    monkeypatch.setattr(stages_today, "_load_cached", lambda: None)
+    monkeypatch.setattr(stages_today, "_fetch_activity_json", _no_net)
+    result = asyncio.run(stages_today.compute())
+    assert len(result["minigames"]) == 5
+    assert result["minigames"][-1]["value"] == "MiniGame@SecretFront"
+
+
+def test_client_data_official_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """真实数据顶层键为 Official（B 服映射 Official），CN 为历史兼容。"""
+    monkeypatch.setattr(stages_today, "_utc_now", lambda: datetime(2026, 9, 6, 4, 0, 0))
+    data = {"Official": {"miniGame": [{"Display": "黑流树海刷钱", "Value": "BlackFlowTemporary@Begin",
+                                       "UtcStartTime": "2026/07/19 16:00:00",
+                                       "UtcExpireTime": "2099/07/19 03:59:59", "TimeZone": 8}]}}
+    out = stages_today._parse_minigames(data)
+    assert out[0]["value"] == "BlackFlowTemporary@Begin"
+    assert out[0]["source"] == "activity"
+    assert out[0]["days_left"] is not None  # 2099 未到期
+
+    # 旧数据 CN 键兼容
+    out_cn = stages_today._parse_minigames({"CN": {"miniGame": []}})
+    assert all(e["source"] == "permanent" for e in out_cn)
+
+
+def test_parse_minigames_expired_filtered(monkeypatch: pytest.MonkeyPatch) -> None:
+    """已过期条目（如 09-04 截止的奇象巡展）被过滤。"""
+    monkeypatch.setattr(stages_today, "_utc_now", lambda: datetime(2026, 9, 6, 4, 0, 0))
+    data = {"Official": {"miniGame": [
+        {"Display": "奇象巡展-牛牛画画", "Value": "MiniGame@PixelPaint@Begin",
+         "UtcStartTime": "2026/08/08 16:00:00", "UtcExpireTime": "2026/09/04 03:59:59", "TimeZone": 8},
+    ]}}
+    out = stages_today._parse_minigames(data)
+    assert all(e["value"] != "MiniGame@PixelPaint@Begin" for e in out)

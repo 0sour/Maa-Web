@@ -12,6 +12,13 @@
   - 资源/芯片关卡 OpenDaysOfWeek 含今天 → 开放
   - 常驻关卡 → 总开放
 
+小游戏（牛杂，对齐客户端 ParseMiniGameEntries / MiniGameEntry.BeingOpen）：
+  - StageActivityV2 `miniGame` 数组：Display/Value/Tip/MinimumRequired +
+    UtcStartTime/UtcExpireTime/TimeZone 开窗过滤（解析失败视为常显）
+  - 常驻表对齐客户端 InitializeDefaultMiniGameEntries（4 商店 + 隐秘战线）；
+    活动条目插在最前（对齐客户端 InsertRange(0)）
+  - 材料合成（MiniGame@MaterialSynthesis）官方 GUI 入口隐藏中，不入表
+
 掉落材料中文名取自引擎包 item_index.json（resource_mgr.item_list）。
 """
 from __future__ import annotations
@@ -47,6 +54,11 @@ _WEEKDAY_CN = {
 def _yj_now() -> datetime:
     """游戏日历当前时刻（凌晨 4 点重置，对齐客户端 DateTimeExtension.ToYjDate）。"""
     return datetime.now().astimezone() - timedelta(hours=4)
+
+
+def _utc_now() -> datetime:
+    """naive UTC 当前时刻（活动开窗比较用，对齐客户端 DateTime.UtcNow 数值语义）。"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _weekday_cn() -> str:
@@ -161,14 +173,24 @@ async def _fetch_activity_json() -> dict | None:
     return None
 
 
+def _client_data(data: dict | None) -> dict:
+    """取国服客户端数据块（对齐客户端 GetClientType：B 服映射 Official）。
+
+    历史兼容：旧版数据曾用 CN 键。
+    """
+    if not isinstance(data, dict):
+        return {}
+    return data.get("Official") or data.get("CN") or data.get("cn") or {}
+
+
 def _parse_activities(data: dict) -> tuple[dict | None, list[dict]]:
-    """解析 sideStoryStage + resourceCollection（CN 客户端）：
+    """解析 sideStoryStage + resourceCollection（国服客户端）：
 
     返回 (资源收集信息或 None, 活动列表)。
     活动条目：{name, days_left, stages: [{stage, drop}]}；只保留开放中的。
     """
-    now = _yj_now()
-    cn = data.get("CN") or data.get("cn") or {}
+    now = _utc_now()
+    cn = _client_data(data)
     if not isinstance(cn, dict):
         return None, []
 
@@ -239,6 +261,61 @@ def _parse_permanent(weekday_cn_en: str) -> list[dict]:
     return out
 
 
+# ── 小游戏（牛杂）─────────────────────────────────────────
+# 常驻条目（对齐客户端 StageManager.InitializeDefaultMiniGameEntries；Value 为引擎任务名）
+_DEFAULT_MINIGAMES: list[dict] = [
+    {"value": "SS@Store@Begin", "display": "SS 商店", "tip": "在 SS 活动商店购买道具（需活动开放）"},
+    {"value": "GreenTicket@Store@Begin", "display": "绿票商店", "tip": "购买凭证交易所商品"},
+    {"value": "YellowTicket@Store@Begin", "display": "黄票商店", "tip": "购买高级凭证交易所商品"},
+    {"value": "RA@Store@Begin", "display": "生息演算商店", "tip": "购买生息演算物资补给点商品"},
+    {"value": "MiniGame@SecretFront", "display": "隐秘战线", "tip": "类卡牌三属性小游戏，按结局自动选卡"},
+]
+
+
+def _parse_minigames(data: dict | None) -> list[dict]:
+    """解析小游戏条目（对齐客户端 ParseMiniGameEntries + MiniGameEntry.BeingOpen）。
+
+    活动条目（`Official.miniGame`）开窗过滤后插在常驻表之前。
+    返回 [{value, display, tip, days_left, source}]，source ∈ activity|permanent。
+    """
+    now = _utc_now()  # naive UTC（对齐客户端 DateTime.UtcNow 与 ParseDateTime 数值比较）
+    entries: list[dict] = []
+
+    cn = _client_data(data)
+    raw = cn.get("miniGame") if isinstance(cn, dict) else None
+    items = raw if isinstance(raw, list) else ([raw] if isinstance(raw, dict) else [])
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        value = str(item.get("Value") or item.get("value") or "").strip()
+        display = str(item.get("Display") or item.get("display") or "").strip()
+        tip = str(item.get("Tip") or item.get("tip") or "").strip()
+        if not value:
+            display = display or "(未命名小游戏)"
+            value = display
+        if not display:
+            display = value
+        # 开窗过滤（对齐 BeingOpen = !NotOpenYet && !IsExpired）：
+        # 时间缺失/解析失败视为 MinValue → 常显
+        start = _parse_dt(item, "UtcStartTime")
+        expire = _parse_dt(item, "UtcExpireTime")
+        if start is not None and now < start:
+            continue  # 未开放
+        if expire is not None and now >= expire:
+            continue  # 已过期
+        entries.append({
+            "value": value,
+            "display": display,
+            "tip": tip,
+            "days_left": _days_left(expire, now),
+            "source": "activity",
+        })
+
+    for d in _DEFAULT_MINIGAMES:
+        entries.append({**d, "days_left": None, "source": "permanent"})
+    return entries
+
+
 async def compute() -> dict:
     """计算今日开放关卡（供 GET /resources/stages/today）。
 
@@ -285,4 +362,5 @@ async def compute() -> dict:
         "resource_collection": rc,
         "activities": activities,
         "open_stages": _parse_permanent(weekday_en),
+        "minigames": _parse_minigames(data),
     }

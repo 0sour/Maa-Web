@@ -43,6 +43,16 @@ export interface ResourceItem {
   classify_type: string
 }
 
+/** 小游戏（牛杂）条目：value 为引擎任务名 */
+export interface MiniGameEntry {
+  value: string
+  display: string
+  tip: string
+  days_left: number | null
+  /** activity | permanent */
+  source: string
+}
+
 /** 今日开放关卡（/resources/stages/today，对齐 MAA 客户端主界面提示） */
 export interface TodayStages {
   game_day: { date: string; weekday: string }
@@ -56,6 +66,7 @@ export interface TodayStages {
     stages: { stage: string; drop: string }[]
   }[]
   open_stages: { stage: string; label: string; drops: string[][] }[]
+  minigames: MiniGameEntry[]
 }
 
 export const resourcesApi = {

@@ -1,35 +1,168 @@
 <script setup lang="ts">
 /**
- * 工具箱页（M5 第一批）—— 公招 / 仓库 / 干员识别 + 历史记录 + 招募联动。
+ * 工具箱页（M5）—— 公招 / 仓库 / 干员识别 + 小游戏（牛杂）+ 历史记录 + 招募联动。
  * 抽卡 / 窥屏为「规划中」占位。
  * 识别流程：POST recognize → 轮询任务状态 → 结果展示 + 自动保存历史记录。
+ * 小游戏：列表选游戏（活动/常驻）→ 配参（隐秘战线/像素画）→ 走任务队列入队执行，
+ * 进度经引擎 extra_info → WS 日志流回显到页内迷你日志（对齐客户端页内日志区）。
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useDevicesStore } from '@/stores/devices'
-import { resourcesApi } from '@/api/resources'
+import { resourcesApi, type MiniGameEntry } from '@/api/resources'
 import { toolboxApi, type RecognizeResult, type ToolboxRecord, type ToolboxTool } from '@/api/toolbox'
+import { tasksApi, openLogStream } from '@/api/tasks'
 import DropSelect, { type DropOption } from '@/tasks/forms/DropSelect.vue'
+import PixelPaintPanel from '@/components/PixelPaintPanel.vue'
+import type { PixelPaintResult } from '@/pixelPaint/PixelPaintHelper'
 
 const devices = useDevicesStore()
 
 // ── 工具导航 ─────────────────────────────────────────
 interface ToolDef {
-  key: ToolboxTool | 'gacha' | 'peep'
+  key: ToolboxTool | 'minigame' | 'gacha' | 'peep'
   label: string
   desc: string
   ico: string
+  group: '识别工具' | '小游戏' | '执行工具'
   planned?: boolean
   danger?: boolean
 }
 
 const TOOLS: ToolDef[] = [
-  { key: 'recruit', label: '公招识别', desc: '识别当前公招界面 · 计算推荐', ico: '招' },
-  { key: 'depot', label: '仓库识别', desc: '扫描仓库材料与数量', ico: '仓' },
-  { key: 'operbox', label: '干员识别', desc: '扫描已拥有干员与练度', ico: '员' },
-  { key: 'gacha', label: '抽卡', desc: '自动执行寻访（高危）', ico: '抽', planned: true, danger: true },
-  { key: 'peep', label: '窥屏', desc: '实时查看设备画面', ico: '屏', planned: true },
+  { key: 'recruit', label: '公招识别', desc: '识别当前公招界面 · 计算推荐', ico: '招', group: '识别工具' },
+  { key: 'depot', label: '仓库识别', desc: '扫描仓库材料与数量', ico: '仓', group: '识别工具' },
+  { key: 'operbox', label: '干员识别', desc: '扫描已拥有干员与练度', ico: '员', group: '识别工具' },
+  { key: 'minigame', label: '小游戏', desc: '牛杂 · 隐秘战线 / 像素画 / 商店', ico: '戏', group: '小游戏' },
+  { key: 'gacha', label: '抽卡', desc: '自动执行寻访（高危）', ico: '抽', group: '执行工具', planned: true, danger: true },
+  { key: 'peep', label: '窥屏', desc: '实时查看设备画面', ico: '屏', group: '执行工具', planned: true },
 ]
-const activeTool = ref<ToolboxTool>('recruit')
+const activeTool = ref<ToolboxTool | 'minigame'>('recruit')
+
+// ── 小游戏（牛杂）────────────────────────────────────
+const minigames = ref<MiniGameEntry[]>([])
+const minigamesErr = ref('')
+const mgSelected = ref<MiniGameEntry | null>(null)
+const sfEnding = ref('A')
+const sfEvent = ref('')
+const ppPanel = ref<InstanceType<typeof PixelPaintPanel> | null>(null)
+const mgBusy = ref(false)
+
+const sfEndingOpts: DropOption[] = [
+  { value: 'A', label: 'A · 物资线（管理）' },
+  { value: 'B', label: 'B · 物资线' },
+  { value: 'C', label: 'C · 情报线' },
+  { value: 'D', label: 'D · 医疗线' },
+  { value: 'E', label: 'E · 医疗线' },
+]
+const sfEventOpts: DropOption[] = [
+  { value: '', label: '不指定事件' },
+  { value: '支援作战平台', label: '支援作战平台' },
+  { value: '游侠', label: '游侠' },
+  { value: '诡影迷踪', label: '诡影迷踪' },
+]
+
+const mgActivity = computed(() => minigames.value.filter((m) => m.source === 'activity'))
+const mgPermanent = computed(() => minigames.value.filter((m) => m.source === 'permanent'))
+const isPixelPaint = computed(() => mgSelected.value?.value.startsWith('MiniGame@PixelPaint') ?? false)
+const isSecretFront = computed(() => mgSelected.value?.value === 'MiniGame@SecretFront')
+
+function selectMinigame(m: MiniGameEntry) {
+  mgSelected.value = m
+  taskError.value = ''
+}
+
+async function loadMinigames() {
+  minigamesErr.value = ''
+  try {
+    const r = await resourcesApi.stagesToday()
+    minigames.value = (r.minigames ?? []) as MiniGameEntry[]
+    if (!mgSelected.value) {
+      mgSelected.value = minigames.value[0] ?? null
+    }
+  } catch (e: unknown) {
+    minigamesErr.value = (e as { message?: string })?.message ?? '读取小游戏列表失败'
+  }
+}
+
+// ── 小游戏执行（任务队列通道 + 页内迷你日志） ────────
+interface MiniLogLine {
+  level: string
+  message: string
+  ts?: string
+}
+const miniLogs = ref<MiniLogLine[]>([])
+let miniWs: WebSocket | null = null
+const MINI_LOG_MAX = 80
+
+function pushMiniLog(line: MiniLogLine) {
+  miniLogs.value.unshift(line)
+  if (miniLogs.value.length > MINI_LOG_MAX) miniLogs.value.pop()
+}
+
+function connectMiniLog(deviceId: number) {
+  closeMiniLog()
+  const ws = openLogStream(deviceId)
+  miniWs = ws
+  ws.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(ev.data as string) as { event?: string; status?: string; level?: string; message?: string; ts?: string }
+      if (data.event === 'run_finished') {
+        pushMiniLog({ level: 'warn', message: `■ 运行结束（${data.status ?? 'unknown'}）` })
+      } else if (data.message) {
+        pushMiniLog({ level: data.level ?? 'info', message: data.message, ts: data.ts })
+      }
+    } catch {
+      /* malformed frame — ignore */
+    }
+  }
+}
+
+function closeMiniLog() {
+  if (miniWs) {
+    miniWs.onclose = null
+    miniWs.close()
+    miniWs = null
+  }
+}
+
+async function startMinigame() {
+  const dev = targetDevice.value
+  if (!dev || dev.status !== 'online') {
+    taskError.value = '请先选择在线设备'
+    return
+  }
+  const sel = mgSelected.value
+  if (!sel) {
+    taskError.value = '请先选择一个小游戏'
+    return
+  }
+  const params: Record<string, unknown> = { game_value: sel.value }
+  if (isSecretFront.value) {
+    params.ending = sfEnding.value
+    params.event = sfEvent.value
+  } else if (isPixelPaint.value) {
+    const r: PixelPaintResult | null = ppPanel.value?.getResult() ?? null
+    if (!r) {
+      taskError.value = '请先导入图片并完成转换'
+      return
+    }
+    params.pixel_paint = { swipe: r.swipe, grid_delay: r.grid_delay, groups: r.groups }
+  }
+  mgBusy.value = true
+  taskError.value = ''
+  try {
+    await tasksApi.run(dev.id, [
+      { name: `小游戏 · ${sel.display}`, entry: 'MiniGame', type: '小游戏', params },
+    ])
+    tip.value = `✔ 「${sel.display}」已加入执行队列${isPixelPaint.value ? '——请确保游戏已停在 24×24 编辑页' : ''}`
+    miniLogs.value = []
+    connectMiniLog(dev.id)
+  } catch (e: unknown) {
+    taskError.value = detailOf(e) || '小游戏启动失败'
+  } finally {
+    mgBusy.value = false
+  }
+}
 
 // ── 设备 ─────────────────────────────────────────────
 const targetId = ref<number | null>(null)
@@ -70,7 +203,7 @@ async function startRecognize() {
   taskResult.value = null
   viewRecord.value = null
   try {
-    const { task_id } = await toolboxApi.recognize(targetDevice.value.id, activeTool.value)
+    const { task_id } = await toolboxApi.recognize(targetDevice.value.id, activeTool.value as ToolboxTool)
     await pollTask(task_id)
   } catch (e: unknown) {
     taskError.value = detailOf(e) || '识别启动失败'
@@ -125,8 +258,9 @@ function devName(id: number): string {
 }
 
 async function loadRecords() {
+  if (activeTool.value === 'minigame') return // 小游戏无识别历史
   try {
-    const r = await toolboxApi.records(activeTool.value, filterDev.value ?? undefined)
+    const r = await toolboxApi.records(activeTool.value as ToolboxTool, filterDev.value ?? undefined)
     records.value = r.records
   } catch (e: unknown) {
     recordsErr.value = (e as { message?: string })?.message ?? '读取历史记录失败'
@@ -247,6 +381,7 @@ onMounted(async () => {
   operNames.value = Object.fromEntries(opers.map((o) => [o.id, o.name]))
   watchDeviceAuto()
   void loadRecords()
+  void loadMinigames()
 })
 
 function watchDeviceAuto() {
@@ -270,7 +405,25 @@ watch(activeTool, () => {
   viewRecord.value = null
   taskError.value = ''
   tip.value = ''
-  void loadRecords()
+  if (activeTool.value === 'minigame') {
+    // 小游戏：关闭识别历史拉取，接上目标设备日志流
+    closeMiniLog()
+    miniLogs.value = []
+    if (targetId.value != null) connectMiniLog(targetId.value)
+    void loadMinigames()
+  } else {
+    closeMiniLog()
+    void loadRecords()
+  }
+})
+
+// 切换目标设备时：小游戏页重连日志流
+watch(targetId, (id) => {
+  if (activeTool.value === 'minigame') {
+    closeMiniLog()
+    miniLogs.value = []
+    if (id != null) connectMiniLog(id)
+  }
 })
 
 watch(filterDev, () => {
@@ -281,6 +434,7 @@ watch(filterDev, () => {
 
 onBeforeUnmount(() => {
   if (pollTimer !== null) window.clearTimeout(pollTimer)
+  closeMiniLog()
 })
 </script>
 
@@ -315,7 +469,7 @@ onBeforeUnmount(() => {
           <div class="tools">
             <div class="group-t">识别工具</div>
             <div
-              v-for="t in TOOLS.filter((x) => !x.planned)"
+              v-for="t in TOOLS.filter((x) => x.group === '识别工具')"
               :key="t.key"
               class="tool"
               :class="{ sel: activeTool === t.key }"
@@ -327,9 +481,23 @@ onBeforeUnmount(() => {
                 <div class="desc">{{ t.desc }}</div>
               </div>
             </div>
+            <div class="group-t">小游戏</div>
+            <div
+              v-for="t in TOOLS.filter((x) => x.group === '小游戏')"
+              :key="t.key"
+              class="tool"
+              :class="{ sel: activeTool === t.key }"
+              @click="activeTool = t.key as 'minigame'"
+            >
+              <span class="ico"><span>{{ t.ico }}</span></span>
+              <div class="ti">
+                <div class="nm">{{ t.label }}</div>
+                <div class="desc">{{ t.desc }}</div>
+              </div>
+            </div>
             <div class="group-t">执行工具</div>
             <div
-              v-for="t in TOOLS.filter((x) => x.planned)"
+              v-for="t in TOOLS.filter((x) => x.group === '执行工具')"
               :key="t.key"
               class="tool planned"
             >
@@ -340,13 +508,85 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </div>
-          <p class="note">识别结果自动保存为历史记录；抽卡等高危功能规划中。</p>
+          <p class="note">识别结果自动保存为历史记录；小游戏需设备在线（对齐 MAA 工具箱）。</p>
         </div>
 
         <!-- 右：内容区 -->
         <div class="right">
+          <!-- 小游戏（牛杂） -->
+          <template v-if="activeTool === 'minigame'">
+            <div class="panel">
+              <div class="ph2">
+                <span class="diamond"></span>
+                <b>小游戏 · 牛杂</b>
+                <small>隐秘战线 / 像素画 / 商店 —— 对齐 MAA 工具箱</small>
+              </div>
+              <div v-if="minigamesErr" class="err-bar">⚠ {{ minigamesErr }}</div>
+              <div class="mg-grid">
+                <!-- 左：小游戏列表 -->
+                <div class="mg-list">
+                  <template v-if="mgActivity.length">
+                    <div class="mg-group">进行中活动</div>
+                    <div
+                      v-for="m in mgActivity" :key="m.value"
+                      class="mg-item" :class="{ sel: mgSelected?.value === m.value }"
+                      @click="selectMinigame(m)"
+                    >
+                      <span class="nm">{{ m.display }}</span>
+                      <span v-if="m.days_left != null" class="dl">{{ m.days_left }} 天</span>
+                    </div>
+                  </template>
+                  <div class="mg-group">常驻</div>
+                  <div
+                    v-for="m in mgPermanent" :key="m.value"
+                    class="mg-item" :class="{ sel: mgSelected?.value === m.value }"
+                    @click="selectMinigame(m)"
+                  >
+                    <span class="nm">{{ m.display }}</span>
+                  </div>
+                  <div v-if="!minigames.length" class="empty">小游戏列表为空——请先在设置页下载引擎资源</div>
+                </div>
+                <!-- 右：参数 + 执行 -->
+                <div class="mg-detail">
+                  <div v-if="mgSelected" class="mg-tip">{{ mgSelected.tip || mgSelected.display }}</div>
+                  <!-- 隐秘战线 -->
+                  <template v-if="isSecretFront">
+                    <div class="f-row">
+                      <label class="f-label">结局<small>决定路线与分队（A/B 物资 · C 情报 · D/E 医疗）</small></label>
+                      <DropSelect v-model="sfEnding" :options="sfEndingOpts" />
+                    </div>
+                    <div class="f-row">
+                      <label class="f-label">目标事件<small>指定后优先进该事件（可空）</small></label>
+                      <DropSelect v-model="sfEvent" :options="sfEventOpts" />
+                    </div>
+                  </template>
+                  <!-- 像素画 -->
+                  <PixelPaintPanel v-else-if="isPixelPaint" ref="ppPanel" :disabled="mgBusy" />
+                  <!-- 商店 / 其他 -->
+                  <div v-else-if="mgSelected" class="empty">
+                    将自动导航并执行「{{ mgSelected.display }}」；
+                    <template v-if="mgSelected.value.includes('Store')">请确认库存充足，任务会在购买完成后停止。</template>
+                    <template v-else>执行前请确认设备画面可回到主界面。</template>
+                  </div>
+                  <div class="mg-start">
+                    <button class="btn-gold" :disabled="mgBusy || !targetDevice || targetDevice.status !== 'online' || !mgSelected" @click="startMinigame">
+                      {{ mgBusy ? '入队中…' : '▶ LINK START!' }}
+                    </button>
+                    <span class="t">执行经任务队列（与作战任务互斥）</span>
+                  </div>
+                  <!-- 迷你日志 -->
+                  <div v-if="miniLogs.length" class="mg-log">
+                    <div v-for="(l, i) in miniLogs" :key="i" class="mg-log-row" :class="l.level">
+                      <span class="msg">{{ l.message }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <!-- 识别操作 -->
-          <div class="panel">
+          <div class="panel" v-else>
             <div class="ph2">
               <span class="diamond"></span>
               <b>{{ TOOLS.find((t) => t.key === activeTool)?.label }}</b>
@@ -414,7 +654,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- 历史记录 -->
-          <div class="panel">
+          <div class="panel" v-if="activeTool !== 'minigame'">
             <div class="ph2">
               <span class="diamond"></span><b>历史识别记录</b>
               <small>保存每次识别结果 · 点击查看详情</small>
@@ -592,4 +832,38 @@ onBeforeUnmount(() => {
 .h-item .sum { flex: 1; font-size: var(--font-size-xs); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .h-item .h-ops { flex-shrink: 0; }
 .note { font-size: var(--font-size-2xs); color: var(--color-text-tertiary); margin-top: 10px; line-height: 1.7; }
+
+/* 小游戏（牛杂） */
+.mg-grid { display: grid; grid-template-columns: 240px 1fr; gap: 16px; margin-top: 8px; }
+@media (max-width: 1080px) { .mg-grid { grid-template-columns: 1fr; } }
+.mg-list { border: 1px solid var(--color-border-default); background: var(--color-bg-subtle); padding: 8px; max-height: 420px; overflow-y: auto; }
+.mg-group { font-size: var(--font-size-2xs); color: var(--color-text-tertiary); letter-spacing: 2px; margin: 6px 2px; }
+.mg-item {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid transparent; padding: 8px 10px; cursor: pointer;
+  transition: all var(--motion-duration-fast) var(--motion-easing-standard);
+}
+.mg-item:hover { border-color: var(--color-brand-strong); }
+.mg-item.sel { background: var(--color-bg-active); border-color: var(--color-brand-strong); }
+.mg-item .nm { flex: 1; font-size: var(--font-size-sm); }
+.mg-item .dl {
+  font-size: var(--font-size-2xs); color: var(--color-warning);
+  border: 1px solid var(--color-warning); padding: 0 5px; white-space: nowrap;
+}
+.mg-detail { min-width: 0; }
+.mg-tip {
+  font-size: var(--font-size-xs); color: var(--color-text-tertiary);
+  border: 1px dashed var(--color-border-default); padding: 8px 12px; margin-bottom: 10px; line-height: 1.7;
+}
+.mg-start { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.mg-start .t { font-size: var(--font-size-2xs); color: var(--color-text-tertiary); }
+.mg-log {
+  margin-top: 12px; max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--color-border-default); background: var(--color-bg-subtle); padding: 8px 12px;
+}
+.mg-log-row { font-size: var(--font-size-2xs); line-height: 1.9; color: var(--color-text-secondary); }
+.mg-log-row.warn { color: var(--color-warning); }
+.mg-log-row.error { color: var(--color-danger); }
+.mg-log-row.ok { color: var(--color-success); }
+.mg-log-row .msg { word-break: break-all; }
 </style>

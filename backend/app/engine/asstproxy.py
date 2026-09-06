@@ -364,6 +364,12 @@ class AsstSession:
             self._emit("info", f"[基建] 产物：{det.get('product', '')}")
         elif what == "StageInfo":
             self._emit("info", f"[作战] 关卡 {det.get('name', '')}")
+        elif what == "PixelPaintProgress":
+            # 像素画插件进度回调（每 10 格/每色完成时）：details {done, total, color}
+            self._emit(
+                "info",
+                f"[小游戏] 像素画进度 {det.get('done', '?')}/{det.get('total', '?')}（色 {det.get('color', '?')}）",
+            )
         elif what == "OfflineConfirm":
             # 游戏掉线/闪退确认弹窗：客户端据此决定自动重启续刷或停止
             self._emit("warn", "[作战] 游戏掉线/闪退")
@@ -487,6 +493,87 @@ def _to_user_additional(raw: Any) -> list[dict]:
     return out
 
 
+# ── 小游戏（牛杂）→ 引擎 Custom 任务 ──────────────────────
+# 对齐客户端 AsstCustomTask.Serialize()：{"task_names": [...], "params": {...}}。
+# 引擎侧 CustomTask 按任务名挂载 SecretFront/PixelPaint 插件（v6.17+ 引擎包）。
+
+_MINIGAME_STORE_TASKS = frozenset({
+    "SS@Store@Begin",
+    "GreenTicket@Store@Begin",
+    "YellowTicket@Store@Begin",
+    "RA@Store@Begin",
+})
+_SECRET_FRONT_EVENTS = frozenset({"支援作战平台", "游侠", "诡影迷踪"})
+
+
+def _minigame_pixel_paint(raw: Any) -> dict:
+    """校验并规整前端像素画参数 → 引擎 params.pixel_paint（对齐 CustomTask 校验）。"""
+    if not isinstance(raw, dict):
+        raise ValueError("小游戏：缺少 pixel_paint 参数")
+    groups_raw = raw.get("groups")
+    if not isinstance(groups_raw, list) or not groups_raw:
+        raise ValueError("小游戏：pixel_paint.groups 为空（请先导入图片）")
+    groups: list[dict] = []
+    total = 0
+    for g in groups_raw:
+        if not isinstance(g, dict):
+            continue
+        color = g.get("color")
+        points = g.get("points")
+        if not isinstance(color, int) or isinstance(color, bool) or not 0 <= color <= 39:
+            continue
+        if not isinstance(points, list):
+            continue
+        pts: list[list[int]] = []
+        for p in points:
+            if isinstance(p, (list, tuple)) and len(p) >= 2:
+                x, y = p[0], p[1]
+                if isinstance(x, int) and isinstance(y, int) and 0 <= x <= 23 and 0 <= y <= 23:
+                    pts.append([x, y])
+        if pts:
+            groups.append({"color": color, "points": pts})
+            total += len(pts)
+    if not groups:
+        raise ValueError("小游戏：groups 校验后为空（color 0~39、坐标 0~23）")
+    if total > 576:
+        raise ValueError("小游戏：点数超过 24×24 画布上限")
+    try:
+        grid_delay = int(raw.get("grid_delay") or 0)
+    except (TypeError, ValueError):
+        grid_delay = 0
+    return {
+        "swipe": bool(raw.get("swipe", True)),
+        "grid_delay": max(0, min(500, grid_delay)),
+        "groups": groups,
+    }
+
+
+def _minigame_custom_task(merged: dict) -> tuple[str, dict]:
+    """小游戏参数 → (Custom, 引擎参数)。game_value 取自 stages_today minigames 列表。"""
+    value = str(merged.get("game_value") or "").strip()
+    if not value:
+        raise ValueError("小游戏：缺少 game_value")
+    if value == "MiniGame@SecretFront":
+        # 任务名编码结局与目标事件（对齐客户端 GetMiniGameTask / CustomTask 解析）
+        ending = str(merged.get("ending") or "").strip().upper()
+        if ending not in {"A", "B", "C", "D", "E"}:
+            raise ValueError(f"小游戏：非法结局 {ending!r}（A~E）")
+        event = str(merged.get("event") or "").strip()
+        if event and event not in _SECRET_FRONT_EVENTS:
+            raise ValueError(f"小游戏：未知目标事件 {event!r}")
+        name = f"MiniGame@SecretFront@Begin@Ending{ending}"
+        if event:
+            name += f"@{event}"
+        return "Custom", {"task_names": [name]}
+    if value in ("MiniGame@PixelPaint", "MiniGame@PixelPaint@Begin"):
+        pp = _minigame_pixel_paint(merged.get("pixel_paint"))
+        return "Custom", {"task_names": ["MiniGame@PixelPaint@Begin"], "params": {"pixel_paint": pp}}
+    # 商店白名单 + 未来活动小游戏条目（活动 JSON 的 Value 即引擎任务名，原样透传）
+    if value in _MINIGAME_STORE_TASKS or value.startswith("MiniGame@"):
+        return "Custom", {"task_names": [value]}
+    raise ValueError(f"小游戏：不支持的任务 {value!r}")
+
+
 def to_asst_task(
     item: Any, client_type: str = "Official", account_name: str | None = None
 ) -> tuple[str, dict]:
@@ -539,6 +626,9 @@ def to_asst_task(
         # 使用种子为 UI 门控开关（引擎键 start_with_seed 为种子字符串），关闭时不下发
         if not merged.get("start_with_seed_enabled"):
             merged.pop("start_with_seed", None)
+    if ttype == "MiniGame":
+        # 小游戏（牛杂）：改写为引擎 Custom 任务（task_names + params.pixel_paint）
+        return _minigame_custom_task(merged)
     if ttype in ("StartUp", "CloseDown"):
         # StartUp/CloseDown 的 client_type 为必填，缺省时注入设备配置
         if not merged.get("client_type"):

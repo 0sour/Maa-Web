@@ -86,6 +86,16 @@ class PermanentStageInfo(BaseModel):
     drops: list[list[str]] = []
 
 
+class MiniGameInfo(BaseModel):
+    """小游戏（牛杂）条目：value 为引擎任务名（Custom 下发用）。"""
+
+    value: str
+    display: str
+    tip: str = ""
+    days_left: int | None = None
+    source: str  # activity | permanent
+
+
 class TodayStages(BaseModel):
     """GET /resources/stages/today — 今日开放关卡（对齐 MAA 客户端主界面提示）。"""
 
@@ -95,3 +105,4 @@ class TodayStages(BaseModel):
     resource_collection: ResourceCollectionInfo | None = None
     activities: list[ActivityInfo] = []
     open_stages: list[PermanentStageInfo] = []
+    minigames: list[MiniGameInfo] = []

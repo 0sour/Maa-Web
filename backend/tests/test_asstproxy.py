@@ -500,3 +500,83 @@ class TestToAsstTask:
         )
         ttype, params = asstproxy.to_asst_task(item)
         assert params["times"] == 3
+
+
+class TestMiniGameTask:
+    """小游戏（牛杂）→ Custom 任务映射。"""
+
+    def test_secret_front_task_name(self):
+        item = TaskItem(
+            name="隐秘战线", entry="MiniGame", type="小游戏",
+            params={"game_value": "MiniGame@SecretFront", "ending": "a", "event": ""},
+        )
+        ttype, params = asstproxy.to_asst_task(item)
+        assert ttype == "Custom"
+        assert params == {"task_names": ["MiniGame@SecretFront@Begin@EndingA"]}
+
+    def test_secret_front_with_event(self):
+        item = TaskItem(
+            name="隐秘战线", entry="MiniGame", type="小游戏",
+            params={"game_value": "MiniGame@SecretFront", "ending": "E", "event": "游侠"},
+        )
+        _, params = asstproxy.to_asst_task(item)
+        assert params["task_names"] == ["MiniGame@SecretFront@Begin@EndingE@游侠"]
+
+    def test_secret_front_invalid_ending_rejected(self):
+        item = TaskItem(
+            name="隐秘战线", entry="MiniGame", type="小游戏",
+            params={"game_value": "MiniGame@SecretFront", "ending": "F"},
+        )
+        with pytest.raises(ValueError, match="非法结局"):
+            asstproxy.to_asst_task(item)
+
+    def test_pixel_paint_params_built(self):
+        groups = [
+            {"color": 0, "points": [[0, 0], [1, 0]]},
+            {"color": 40, "points": [[5, 5]]},          # 越界色组丢弃
+            {"color": 3, "points": [[30, 0], [0, 99]]},  # 越界坐标丢弃 → 组空
+        ]
+        item = TaskItem(
+            name="像素画", entry="MiniGame", type="小游戏",
+            params={"game_value": "MiniGame@PixelPaint",
+                    "pixel_paint": {"swipe": True, "grid_delay": 999, "groups": groups}},
+        )
+        ttype, params = asstproxy.to_asst_task(item)
+        assert ttype == "Custom"
+        assert params["task_names"] == ["MiniGame@PixelPaint@Begin"]
+        pp = params["params"]["pixel_paint"]
+        assert pp["swipe"] is True
+        assert pp["grid_delay"] == 500  # 钳制到客户端上限
+        assert pp["groups"] == [{"color": 0, "points": [[0, 0], [1, 0]]}]
+
+    def test_pixel_paint_empty_groups_rejected(self):
+        item = TaskItem(
+            name="像素画", entry="MiniGame", type="小游戏",
+            params={"game_value": "MiniGame@PixelPaint", "pixel_paint": {"groups": []}},
+        )
+        with pytest.raises(ValueError, match="groups"):
+            asstproxy.to_asst_task(item)
+
+    def test_store_task_passthrough(self):
+        for v in ("SS@Store@Begin", "GreenTicket@Store@Begin", "RA@Store@Begin"):
+            item = TaskItem(name="商店", entry="MiniGame", type="小游戏", params={"game_value": v})
+            ttype, params = asstproxy.to_asst_task(item)
+            assert ttype == "Custom"
+            assert params == {"task_names": [v]}
+
+    def test_activity_value_passthrough(self):
+        """未来活动小游戏条目（MiniGame@ 前缀）原样透传。"""
+        item = TaskItem(name="活动小游戏", entry="MiniGame", type="小游戏",
+                        params={"game_value": "MiniGame@NewActivity"})
+        ttype, params = asstproxy.to_asst_task(item)
+        assert (ttype, params) == ("Custom", {"task_names": ["MiniGame@NewActivity"]})
+
+    def test_unknown_value_rejected(self):
+        item = TaskItem(name="小游戏", entry="MiniGame", type="小游戏", params={"game_value": "Fight"})
+        with pytest.raises(ValueError, match="不支持"):
+            asstproxy.to_asst_task(item)
+
+    def test_missing_game_value_rejected(self):
+        item = TaskItem(name="小游戏", entry="MiniGame", type="小游戏", params={})
+        with pytest.raises(ValueError, match="game_value"):
+            asstproxy.to_asst_task(item)
